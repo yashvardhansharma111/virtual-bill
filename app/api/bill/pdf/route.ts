@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import puppeteer from 'puppeteer';
+import puppeteer from 'puppeteer-core';
+import chromium from '@sparticuz/chromium';
 
 /**
  * POST /api/bill/pdf
  * Generate PDF using Puppeteer (server-side)
+ * Optimized for Vercel serverless environment
  */
 export async function POST(request: NextRequest) {
+  let browser;
   try {
     const { html } = await request.json();
 
@@ -16,18 +19,31 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Launch Puppeteer
-    const browser = await puppeteer.launch({
+    // Launch Puppeteer with Chromium for serverless
+    // In production (Vercel), use @sparticuz/chromium
+    // In development, use local Chrome if available
+    const isProduction = process.env.VERCEL || process.env.NODE_ENV === 'production';
+    
+    const launchOptions: any = {
+      args: isProduction ? chromium.args : ['--no-sandbox', '--disable-setuid-sandbox'],
       headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox'],
-    });
+    };
+
+    if (isProduction) {
+      launchOptions.executablePath = await chromium.executablePath();
+    } else if (process.env.PUPPETEER_EXECUTABLE_PATH) {
+      launchOptions.executablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
+    }
+    
+    browser = await puppeteer.launch(launchOptions);
 
     try {
       const page = await browser.newPage();
       
-      // Set content with HTML
+      // Set content with HTML - use shorter timeout for serverless
       await page.setContent(html, {
-        waitUntil: 'networkidle0',
+        waitUntil: 'domcontentloaded', // Changed from networkidle0 for faster processing
+        timeout: 30000, // 30 second timeout
       });
 
       // Generate PDF
@@ -54,13 +70,28 @@ export async function POST(request: NextRequest) {
         },
       });
     } catch (error) {
-      await browser.close();
+      if (browser) {
+        await browser.close();
+      }
       throw error;
     }
   } catch (error: any) {
     console.error('Error generating PDF:', error);
+    
+    // Ensure browser is closed even on error
+    if (browser) {
+      try {
+        await browser.close();
+      } catch (closeError) {
+        console.error('Error closing browser:', closeError);
+      }
+    }
+    
     return NextResponse.json(
-      { error: error.message || 'Failed to generate PDF' },
+      { 
+        error: error.message || 'Failed to generate PDF',
+        details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      },
       { status: 500 }
     );
   }
