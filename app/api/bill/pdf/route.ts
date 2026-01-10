@@ -1,6 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import puppeteer from 'puppeteer-core';
-import chromium from '@sparticuz/chromium';
 
 /**
  * POST /api/bill/pdf
@@ -19,20 +17,34 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Launch Puppeteer with Chromium for serverless
-    // In production (Vercel), use @sparticuz/chromium
-    // In development, use local Chrome if available
+    // Dynamically import puppeteer based on environment
+    // In production (Vercel), use puppeteer-core with @sparticuz/chromium
+    // In development, use regular puppeteer (includes Chromium)
     const isProduction = process.env.VERCEL || process.env.NODE_ENV === 'production';
     
+    let puppeteer: any;
+    let chromium: any;
+    
+    if (isProduction) {
+      // Production: Use puppeteer-core with @sparticuz/chromium
+      puppeteer = (await import('puppeteer-core')).default;
+      chromium = (await import('@sparticuz/chromium')).default;
+    } else {
+      // Development: Use regular puppeteer (includes Chromium)
+      puppeteer = (await import('puppeteer')).default;
+    }
+
     const launchOptions: any = {
-      args: isProduction ? chromium.args : ['--no-sandbox', '--disable-setuid-sandbox'],
       headless: true,
     };
 
     if (isProduction) {
+      // Production: Use @sparticuz/chromium
+      launchOptions.args = chromium.args;
       launchOptions.executablePath = await chromium.executablePath();
-    } else if (process.env.PUPPETEER_EXECUTABLE_PATH) {
-      launchOptions.executablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
+    } else {
+      // Development: Use regular puppeteer args
+      launchOptions.args = ['--no-sandbox', '--disable-setuid-sandbox'];
     }
     
     browser = await puppeteer.launch(launchOptions);
