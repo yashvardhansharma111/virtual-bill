@@ -1,6 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 /**
+ * Route segment config for Vercel
+ * App Router me yeh format use hota hai (vercel.json nahi)
+ */
+export const maxDuration = 30; // 30 seconds for PDF generation
+export const runtime = 'nodejs'; // Use Node.js runtime for Puppeteer
+
+/**
  * POST /api/bill/pdf
  * Generate PDF using Puppeteer (server-side)
  * Optimized for Vercel serverless environment
