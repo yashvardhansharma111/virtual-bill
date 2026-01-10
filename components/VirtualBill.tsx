@@ -1,8 +1,7 @@
 'use client';
 
 import { useRef, useState } from 'react';
-import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
+import axios from 'axios';
 import { formatCurrency, formatDate } from '@/lib/utils';
 
 interface Product {
@@ -63,7 +62,77 @@ export default function VirtualBill({ cart, onClose }: VirtualBillProps) {
         (input as HTMLElement).style.backgroundColor = 'transparent';
       });
 
-      // Capture the HTML content as canvas (preserves Hindi text)
+      // Pre-process colors to avoid lab() parsing errors
+      // Add inline styles to override Tailwind classes with hex colors
+      const billContent = billRef.current.querySelector('#bill-content');
+      if (billContent) {
+        const allElements = billContent.querySelectorAll('*');
+        allElements.forEach((el: Element) => {
+          const htmlEl = el as HTMLElement;
+          const classList = htmlEl.classList;
+          
+          // Set inline styles to override Tailwind classes
+          if (classList.contains('bg-purple-600')) {
+            htmlEl.style.setProperty('background-color', '#9333ea', 'important');
+          } else if (classList.contains('bg-blue-50')) {
+            htmlEl.style.setProperty('background-color', '#eff6ff', 'important');
+          } else if (classList.contains('bg-gray-100')) {
+            htmlEl.style.setProperty('background-color', '#f3f4f6', 'important');
+          }
+          
+          if (classList.contains('text-purple-600')) {
+            htmlEl.style.setProperty('color', '#9333ea', 'important');
+          } else if (classList.contains('text-gray-800')) {
+            htmlEl.style.setProperty('color', '#1f2937', 'important');
+          } else if (classList.contains('text-gray-700')) {
+            htmlEl.style.setProperty('color', '#374151', 'important');
+          } else if (classList.contains('text-gray-600')) {
+            htmlEl.style.setProperty('color', '#4b5563', 'important');
+          }
+          
+          if (classList.contains('border-purple-600')) {
+            htmlEl.style.setProperty('border-color', '#9333ea', 'important');
+          } else if (classList.contains('border-blue-600')) {
+            htmlEl.style.setProperty('border-color', '#2563eb', 'important');
+          } else if (classList.contains('border-gray-800')) {
+            htmlEl.style.setProperty('border-color', '#1f2937', 'important');
+          } else if (classList.contains('border-gray-300')) {
+            htmlEl.style.setProperty('border-color', '#d1d5db', 'important');
+          }
+        });
+      }
+
+      // Use Puppeteer API instead of html2canvas to avoid lab() color issues
+      // Get HTML content
+      const htmlContent = billRef.current.outerHTML;
+      
+      // Restore buttons and inputs first
+      buttons.forEach((btn) => ((btn as HTMLElement).style.display = ''));
+      inputs.forEach((input) => {
+        (input as HTMLElement).style.border = '';
+        (input as HTMLElement).style.borderBottom = '';
+        (input as HTMLElement).style.backgroundColor = '';
+      });
+
+      // Send to server-side Puppeteer API
+      const response = await axios.post(
+        '/api/bill/pdf',
+        { html: htmlContent },
+        { responseType: 'blob' }
+      );
+
+      // Download PDF
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `bill-${billNumber}-${Date.now()}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      return;
+
+      // OLD CODE BELOW - NOT USED
       const canvas = await html2canvas(billRef.current, {
         scale: 2, // Higher quality
         useCORS: true,
@@ -71,6 +140,58 @@ export default function VirtualBill({ cart, onClose }: VirtualBillProps) {
         backgroundColor: '#ffffff',
         width: billRef.current.scrollWidth,
         height: billRef.current.scrollHeight,
+        ignoreElements: (element) => {
+          // Ignore elements that might cause issues
+          return element.classList?.contains('no-pdf') || false;
+        },
+        onclone: (clonedDoc) => {
+          // Fix color issues - html2canvas doesn't support lab() color functions from Tailwind v4
+          const clonedElement = clonedDoc.querySelector('#bill-content') || clonedDoc.body;
+          if (clonedElement) {
+            // Convert all elements to use simple hex/rgb colors
+            const allElements = clonedElement.querySelectorAll('*');
+            allElements.forEach((el: Element) => {
+              const htmlEl = el as HTMLElement;
+              try {
+                // Use class-based color mapping instead of computed styles
+                // This avoids parsing lab() colors
+                if (htmlEl.classList.contains('bg-purple-600')) {
+                  htmlEl.style.backgroundColor = '#9333ea';
+                } else if (htmlEl.classList.contains('bg-blue-50')) {
+                  htmlEl.style.backgroundColor = '#eff6ff';
+                } else if (htmlEl.classList.contains('bg-gray-100')) {
+                  htmlEl.style.backgroundColor = '#f3f4f6';
+                } else if (htmlEl.classList.contains('bg-red-600')) {
+                  htmlEl.style.backgroundColor = '#dc2626';
+                }
+                
+                if (htmlEl.classList.contains('text-purple-600')) {
+                  htmlEl.style.color = '#9333ea';
+                } else if (htmlEl.classList.contains('text-red-600')) {
+                  htmlEl.style.color = '#dc2626';
+                } else if (htmlEl.classList.contains('text-gray-800')) {
+                  htmlEl.style.color = '#1f2937';
+                } else if (htmlEl.classList.contains('text-gray-700')) {
+                  htmlEl.style.color = '#374151';
+                } else if (htmlEl.classList.contains('text-gray-600')) {
+                  htmlEl.style.color = '#4b5563';
+                }
+                
+                if (htmlEl.classList.contains('border-purple-600')) {
+                  htmlEl.style.borderColor = '#9333ea';
+                } else if (htmlEl.classList.contains('border-blue-600')) {
+                  htmlEl.style.borderColor = '#2563eb';
+                } else if (htmlEl.classList.contains('border-gray-800')) {
+                  htmlEl.style.borderColor = '#1f2937';
+                } else if (htmlEl.classList.contains('border-gray-300')) {
+                  htmlEl.style.borderColor = '#d1d5db';
+                }
+              } catch (e) {
+                // Ignore errors for individual elements
+              }
+            });
+          }
+        },
       });
 
       // Restore buttons and inputs
@@ -105,7 +226,7 @@ export default function VirtualBill({ cart, onClose }: VirtualBillProps) {
       pdf.save(`bill-${billNumber}-${Date.now()}.pdf`);
     } catch (error) {
       console.error('Error generating PDF:', error);
-      alert('Error generating PDF. Please try again.');
+      alert('Error generating PDF. Please try again or use the Print option instead.');
     }
   };
 
