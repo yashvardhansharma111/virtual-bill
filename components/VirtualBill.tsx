@@ -1,7 +1,6 @@
 'use client';
 
 import { useRef, useState } from 'react';
-import axios from 'axios';
 import { formatCurrency, formatDate } from '@/lib/utils';
 
 interface Product {
@@ -48,92 +47,11 @@ export default function VirtualBill({ cart, onClose }: VirtualBillProps) {
     window.print();
   };
 
-  const handleDownloadPDF = async () => {
-    if (!billRef.current) return;
-
-    try {
-      // Hide buttons and input borders for PDF capture
-      const buttons = billRef.current.querySelectorAll('button');
-      const inputs = billRef.current.querySelectorAll('input');
-      buttons.forEach((btn) => ((btn as HTMLElement).style.display = 'none'));
-      inputs.forEach((input) => {
-        (input as HTMLElement).style.border = 'none';
-        (input as HTMLElement).style.borderBottom = '1px solid #000';
-        (input as HTMLElement).style.backgroundColor = 'transparent';
-      });
-
-      // Pre-process colors to avoid lab() parsing errors
-      // Add inline styles to override Tailwind classes with hex colors
-      const billContent = billRef.current.querySelector('#bill-content');
-      if (billContent) {
-        const allElements = billContent.querySelectorAll('*');
-        allElements.forEach((el: Element) => {
-          const htmlEl = el as HTMLElement;
-          const classList = htmlEl.classList;
-          
-          // Set inline styles to override Tailwind classes
-          if (classList.contains('bg-purple-600')) {
-            htmlEl.style.setProperty('background-color', '#9333ea', 'important');
-          } else if (classList.contains('bg-blue-50')) {
-            htmlEl.style.setProperty('background-color', '#eff6ff', 'important');
-          } else if (classList.contains('bg-gray-100')) {
-            htmlEl.style.setProperty('background-color', '#f3f4f6', 'important');
-          }
-          
-          if (classList.contains('text-purple-600')) {
-            htmlEl.style.setProperty('color', '#9333ea', 'important');
-          } else if (classList.contains('text-gray-800')) {
-            htmlEl.style.setProperty('color', '#1f2937', 'important');
-          } else if (classList.contains('text-gray-700')) {
-            htmlEl.style.setProperty('color', '#374151', 'important');
-          } else if (classList.contains('text-gray-600')) {
-            htmlEl.style.setProperty('color', '#4b5563', 'important');
-          }
-          
-          if (classList.contains('border-purple-600')) {
-            htmlEl.style.setProperty('border-color', '#9333ea', 'important');
-          } else if (classList.contains('border-blue-600')) {
-            htmlEl.style.setProperty('border-color', '#2563eb', 'important');
-          } else if (classList.contains('border-gray-800')) {
-            htmlEl.style.setProperty('border-color', '#1f2937', 'important');
-          } else if (classList.contains('border-gray-300')) {
-            htmlEl.style.setProperty('border-color', '#d1d5db', 'important');
-          }
-        });
-      }
-
-      // Use Puppeteer API instead of html2canvas to avoid lab() color issues
-      // Get HTML content
-      const htmlContent = billRef.current.outerHTML;
-      
-      // Restore buttons and inputs first
-      buttons.forEach((btn) => ((btn as HTMLElement).style.display = ''));
-      inputs.forEach((input) => {
-        (input as HTMLElement).style.border = '';
-        (input as HTMLElement).style.borderBottom = '';
-        (input as HTMLElement).style.backgroundColor = '';
-      });
-
-      // Send to server-side Puppeteer API
-      const response = await axios.post(
-        '/api/bill/pdf',
-        { html: htmlContent },
-        { responseType: 'blob' }
-      );
-
-      // Download PDF
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', `bill-${billNumber}-${Date.now()}.pdf`);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(url);
-    } catch (error) {
-      console.error('Error generating PDF:', error);
-      alert('Error generating PDF. Please try again or use the Print option instead.');
-    }
+  const handleDownloadPDF = () => {
+    // Use browser's native print-to-PDF functionality
+    // This preserves all HTML rendering including Hindi text perfectly
+    // User can select "Save as PDF" in the print dialog
+    window.print();
   };
 
   return (
@@ -165,7 +83,7 @@ export default function VirtualBill({ cart, onClose }: VirtualBillProps) {
         </div>
 
         {/* Bill Content */}
-        <div ref={billRef} className="p-8 print:p-4 bg-white">
+        <div ref={billRef} id="bill-content" className="p-8 print:p-4 bg-white">
           {/* Shop Header */}
           <div className="text-center mb-6 border-b-2 border-blue-600 pb-4">
             <h1 className="text-4xl font-bold text-red-600 mb-2">{shopName}</h1>
@@ -281,29 +199,53 @@ export default function VirtualBill({ cart, onClose }: VirtualBillProps) {
         </div>
       </div>
 
-      {/* Print Styles */}
+      {/* Print Styles - Optimized for PDF generation */}
       <style jsx global>{`
         @media print {
+          @page {
+            size: A4;
+            margin: 10mm;
+          }
+          
           body * {
             visibility: hidden;
           }
-          .print\\:p-4,
-          .print\\:p-4 * {
+          
+          #bill-content,
+          #bill-content * {
             visibility: visible;
           }
-          .print\\:p-4 {
+          
+          #bill-content {
             position: absolute;
             left: 0;
             top: 0;
             width: 100%;
-            background: white;
+            background: white !important;
+            padding: 20px;
+            margin: 0;
           }
+          
           button {
             display: none !important;
           }
+          
           input {
             border: none !important;
+            border-bottom: 1px solid #000 !important;
             background: transparent !important;
+            padding: 2px 4px !important;
+            color: #000 !important;
+          }
+          
+          /* Ensure Hindi fonts render correctly */
+          * {
+            font-family: Arial, "Noto Sans Devanagari", "Mangal", sans-serif !important;
+          }
+          
+          /* Hide scrollbars */
+          ::-webkit-scrollbar {
+            display: none;
           }
         }
       `}</style>
