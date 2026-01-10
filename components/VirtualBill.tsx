@@ -2,6 +2,7 @@
 
 import { useRef, useState } from 'react';
 import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 import { formatCurrency, formatDate } from '@/lib/utils';
 
 interface Product {
@@ -51,112 +52,61 @@ export default function VirtualBill({ cart, onClose }: VirtualBillProps) {
   const handleDownloadPDF = async () => {
     if (!billRef.current) return;
 
-    const pdf = new jsPDF({
-      unit: 'mm',
-      format: [80, 297], // A4 width, longer height for receipt
-    });
+    try {
+      // Hide buttons and input borders for PDF capture
+      const buttons = billRef.current.querySelectorAll('button');
+      const inputs = billRef.current.querySelectorAll('input');
+      buttons.forEach((btn) => ((btn as HTMLElement).style.display = 'none'));
+      inputs.forEach((input) => {
+        (input as HTMLElement).style.border = 'none';
+        (input as HTMLElement).style.borderBottom = '1px solid #000';
+        (input as HTMLElement).style.backgroundColor = 'transparent';
+      });
 
-    let yPos = 10;
+      // Capture the HTML content as canvas (preserves Hindi text)
+      const canvas = await html2canvas(billRef.current, {
+        scale: 2, // Higher quality
+        useCORS: true,
+        logging: false,
+        backgroundColor: '#ffffff',
+        width: billRef.current.scrollWidth,
+        height: billRef.current.scrollHeight,
+      });
 
-    // Shop Header
-    pdf.setFontSize(14);
-    pdf.setFont('helvetica', 'bold');
-    pdf.text(shopName, 40, yPos, { align: 'center' });
-    yPos += 6;
+      // Restore buttons and inputs
+      buttons.forEach((btn) => ((btn as HTMLElement).style.display = ''));
+      inputs.forEach((input) => {
+        (input as HTMLElement).style.border = '';
+        (input as HTMLElement).style.borderBottom = '';
+        (input as HTMLElement).style.backgroundColor = '';
+      });
 
-    pdf.setFontSize(9);
-    pdf.setFont('helvetica', 'normal');
-    pdf.text(ownerName, 40, yPos, { align: 'center' });
-    yPos += 4;
-    pdf.text(shopPhone, 40, yPos, { align: 'center' });
-    yPos += 4;
-    pdf.text(shopDescription, 40, yPos, { align: 'center' });
-    yPos += 4;
-    pdf.text(shopInfo, 40, yPos, { align: 'center' });
-    yPos += 4;
-    pdf.text(shopAddress, 40, yPos, { align: 'center' });
-    yPos += 6;
+      // Calculate PDF dimensions
+      const imgWidth = 210; // A4 width in mm
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      const pdf = new jsPDF('p', 'mm', 'a4');
 
-    // Bill Number and Date
-    pdf.setFontSize(9);
-    pdf.text(`क्र. ${billNumber}`, 5, yPos);
-    pdf.text(`दिनांक: ${new Date().toLocaleDateString('en-IN')}`, 50, yPos, { align: 'right' });
-    yPos += 5;
+      // Add image to PDF
+      const imgData = canvas.toDataURL('image/png');
+      pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
 
-    // Customer Details
-    pdf.text(`श्रीमान: ${customerName || '________________'}`, 5, yPos);
-    yPos += 4;
-    pdf.text(`ग्राम: ${customerVillage || '________________'}`, 5, yPos);
-    yPos += 5;
+      // If content is taller than one page, add additional pages
+      const pageHeight = pdf.internal.pageSize.height;
+      let heightLeft = imgHeight;
+      let position = 0;
 
-    // Table Header
-    pdf.setFontSize(8);
-    pdf.setFont('helvetica', 'bold');
-    pdf.text('क्र.', 5, yPos);
-    pdf.text('विवरण', 12, yPos);
-    pdf.text('नग', 50, yPos);
-    pdf.text('भाव', 58, yPos);
-    pdf.text('रकम', 70, yPos, { align: 'right' });
-    yPos += 4;
-    pdf.line(5, yPos, 75, yPos);
-    yPos += 3;
-
-    // Items
-    pdf.setFont('helvetica', 'normal');
-    cart.forEach((item, index) => {
-      if (yPos > 250) {
+      while (heightLeft > 0) {
+        position = heightLeft - pageHeight;
         pdf.addPage();
-        yPos = 10;
+        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
       }
-      pdf.text(String(index + 1), 5, yPos);
-      const itemDesc = `${item.name} (${item.brand})`;
-      pdf.text(itemDesc.length > 30 ? itemDesc.substring(0, 27) + '...' : itemDesc, 12, yPos);
-      pdf.text(String(item.quantity), 50, yPos);
-      pdf.text(formatCurrency(item.price), 58, yPos);
-      pdf.text(formatCurrency(item.price * item.quantity), 70, yPos, { align: 'right' });
-      yPos += 5;
-    });
 
-    // Total
-    yPos += 2;
-    pdf.line(5, yPos, 75, yPos);
-    yPos += 3;
-    pdf.setFont('helvetica', 'bold');
-    pdf.text('टोटल', 5, yPos);
-    pdf.text(formatCurrency(grandTotal), 70, yPos, { align: 'right' });
-    yPos += 8;
-
-    // Terms and Conditions
-    pdf.setFontSize(7);
-    pdf.setFont('helvetica', 'bold');
-    pdf.text('हमारी शर्तें -', 5, yPos);
-    yPos += 4;
-    pdf.setFont('helvetica', 'normal');
-    const terms = [
-      '(1) हम विक्रेता है, निर्माता नही।',
-      '(2) बेंचा हुआ माल वापस नहीं होगा।',
-      '(3) बिल पर हस्ताक्षर लेना या ना लेना हमारी मर्जी पर होगा।',
-      '(4) सभी विवादों का न्यायक्षेत्र खाचरौद रहेगा।',
-      '(5) भूल-चूक, लेनी-देनी।',
-      '(6) मैर्ने उपरोक्त नियम व शर्तों के अनुसार माल लेना स्वीकार किया है।',
-      '(7) रुपया देकर हमारी रसीद प्राप्त करें।',
-    ];
-
-    terms.forEach((term) => {
-      if (yPos > 280) {
-        pdf.addPage();
-        yPos = 10;
-      }
-      pdf.text(term, 5, yPos);
-      yPos += 4;
-    });
-
-    // Signatures
-    yPos += 5;
-    pdf.text('ग्राहक हस्ताक्षर', 5, yPos);
-    pdf.text('फॉर ' + shopName, 50, yPos, { align: 'right' });
-
-    pdf.save(`bill-${billNumber}-${Date.now()}.pdf`);
+      pdf.save(`bill-${billNumber}-${Date.now()}.pdf`);
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      alert('Error generating PDF. Please try again.');
+    }
   };
 
   return (
