@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
       });
 
       // Generate PDF
-      const pdf = await page.pdf({
+      const pdfBuffer = await page.pdf({
         format: 'A4',
         printBackground: true,
         margin: {
@@ -44,8 +44,10 @@ export async function POST(request: NextRequest) {
 
       await browser.close();
 
-      // Return PDF as response
-      return new NextResponse(pdf, {
+      // Return PDF as response - Convert Buffer to Uint8Array for Blob compatibility
+      const uint8Array = new Uint8Array(pdfBuffer);
+      const pdfBlob = new Blob([uint8Array], { type: 'application/pdf' });
+      return new Response(pdfBlob, {
         headers: {
           'Content-Type': 'application/pdf',
           'Content-Disposition': `attachment; filename="bill-${Date.now()}.pdf"`,
