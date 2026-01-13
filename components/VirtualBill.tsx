@@ -32,7 +32,8 @@ export default function VirtualBill({ cart, onClose }: VirtualBillProps) {
   const billRef = useRef<HTMLDivElement>(null);
   const [billNumber] = useState(() => `BILL-${Date.now()}-${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`);
   const [customerName, setCustomerName] = useState('');
-  const [customerVillage, setCustomerVillage] = useState('');
+  const [customerPhone, setCustomerPhone] = useState('');
+  const [customerAddress, setCustomerAddress] = useState('');
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
@@ -63,6 +64,10 @@ export default function VirtualBill({ cart, onClose }: VirtualBillProps) {
       toast.error('Please enter customer name');
       return;
     }
+    if (!customerPhone.trim()) {
+      toast.error('Please enter customer phone number');
+      return;
+    }
 
     setSaving(true);
     try {
@@ -79,7 +84,8 @@ export default function VirtualBill({ cart, onClose }: VirtualBillProps) {
       const response = await axios.post('/api/bills', {
         billNumber,
         customerName: customerName.trim(),
-        customerVillage: customerVillage.trim(),
+        customerPhone: customerPhone.trim(),
+        customerAddress: customerAddress.trim(),
         items,
         subtotal,
         grandTotal,
@@ -175,15 +181,27 @@ export default function VirtualBill({ cart, onClose }: VirtualBillProps) {
                 onChange={(e) => setCustomerName(e.target.value)}
                 placeholder="ग्राहक का नाम"
                 className="border-b border-gray-300 px-2 py-1 outline-none focus:border-purple-600 print:border-none print:px-0"
+                required
               />
             </div>
             <div>
-              <span className="font-semibold text-gray-800">ग्राम: </span>
+              <span className="font-semibold text-gray-800">फोन: </span>
               <input
                 type="text"
-                value={customerVillage}
-                onChange={(e) => setCustomerVillage(e.target.value)}
-                placeholder="ग्राम/शहर"
+                value={customerPhone}
+                onChange={(e) => setCustomerPhone(e.target.value)}
+                placeholder="फोन नंबर"
+                className="border-b border-gray-300 px-2 py-1 outline-none focus:border-purple-600 print:border-none print:px-0"
+                required
+              />
+            </div>
+            <div>
+              <span className="font-semibold text-gray-800">ग्राम/पता: </span>
+              <input
+                type="text"
+                value={customerAddress}
+                onChange={(e) => setCustomerAddress(e.target.value)}
+                placeholder="ग्राम/शहर/पता"
                 className="border-b border-gray-300 px-2 py-1 outline-none focus:border-purple-600 print:border-none print:px-0"
               />
             </div>

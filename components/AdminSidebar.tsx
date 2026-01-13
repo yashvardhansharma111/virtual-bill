@@ -25,6 +25,7 @@ export default function AdminSidebar() {
   const navItems = [
     { href: '/admin/dashboard', label: 'Dashboard', icon: '📊' },
     { href: '/admin/products', label: 'Products', icon: '📦' },
+    { href: '/admin/bills', label: 'Bills', icon: '🧾' },
     { href: '/admin/customers', label: 'Customers', icon: '👥' },
   ];
 

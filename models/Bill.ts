@@ -2,9 +2,9 @@ import mongoose, { Schema, Document, Model } from 'mongoose';
 
 export interface IBill extends Document {
   billNumber: string;
-  userId: mongoose.Types.ObjectId;
   customerName: string;
-  customerVillage: string;
+  customerPhone: string;
+  customerAddress: string;
   items: Array<{
     productId: mongoose.Types.ObjectId;
     name: string;
@@ -31,18 +31,17 @@ const BillSchema: Schema = new Schema(
       unique: true,
       index: true,
     },
-    userId: {
-      type: Schema.Types.ObjectId,
-      ref: 'User',
-      required: true,
-      index: true,
-    },
     customerName: {
       type: String,
       required: true,
       trim: true,
     },
-    customerVillage: {
+    customerPhone: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    customerAddress: {
       type: String,
       trim: true,
       default: '',
@@ -85,7 +84,6 @@ const BillSchema: Schema = new Schema(
       type: String,
       enum: ['pending', 'partial', 'paid'],
       default: 'pending',
-      index: true,
     },
   },
   {
@@ -93,8 +91,10 @@ const BillSchema: Schema = new Schema(
   }
 );
 
-BillSchema.index({ userId: 1, status: 1 });
 BillSchema.index({ customerName: 1 });
+BillSchema.index({ customerPhone: 1 });
+BillSchema.index({ status: 1 });
+BillSchema.index({ createdAt: -1 });
 
 const Bill: Model<IBill> = mongoose.models.Bill || mongoose.model<IBill>('Bill', BillSchema);
 
