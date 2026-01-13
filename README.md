@@ -11,12 +11,19 @@ A full-stack Next.js application for managing an Indian electrical shop billing 
 - **Search & Filter** - Search products by name, brand, type
 - **Sorting** - Sort by price, name, or type
 - **Dashboard Stats** - View total products and categories
+- **Customer Management** - View all customers with outstanding balances
+- **Outstanding Balance Tracking** - Track pending bills and payments for each customer
+- **SMS Notifications** - Send SMS reminders to customers via Renflair
+- **Payment Management** - Update payment status for customer bills
 
 ### User Panel
+- **User Authentication** - Sign up and login with email, phone, and password
+- **Email Verification** - OTP-based email verification via SMTP
+- **Password Reset** - Forgot password with OTP verification
 - **Product Browsing** - View all available products
 - **Search & Filter** - Search and filter products by type
 - **Shopping Cart** - Add products to cart with quantity management
-- **Virtual Bill Generation** - Generate Indian-style shop receipts
+- **Virtual Bill Generation** - Generate Indian-style shop receipts (requires authentication)
 - **PDF Download** - Download bills as PDF
 - **Print Functionality** - Print bills directly
 
@@ -29,7 +36,9 @@ A full-stack Next.js application for managing an Indian electrical shop billing 
 - **Cloudinary** (Image upload)
 - **Axios** (HTTP client)
 - **React Toastify** (Notifications)
-- **jsPDF** (PDF generation)
+- **Nodemailer** (SMTP email for OTP)
+- **bcryptjs** (Password hashing)
+- **jsonwebtoken** (JWT authentication)
 
 ## 📋 Prerequisites
 
@@ -54,13 +63,39 @@ A full-stack Next.js application for managing an Indian electrical shop billing 
    
    Create a `.env.local` file in the root directory:
    ```env
+   # MongoDB Configuration
    MONGODB_URI=mongodb://localhost:27017/virtualbill
    # Or use MongoDB Atlas:
    # MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/virtualbill
 
+   # JWT Secret (Change this to a random string in production)
+   JWT_SECRET=your-secret-key-change-in-production
+
+   # Cloudinary Configuration
    CLOUDINARY_CLOUD_NAME=your_cloud_name
    CLOUDINARY_API_KEY=your_api_key
    CLOUDINARY_API_SECRET=your_api_secret
+
+   # SMTP Configuration for Email OTP
+   # Gmail Example:
+   SMTP_HOST=smtp.gmail.com
+   SMTP_PORT=587
+   SMTP_SECURE=false
+   SMTP_USER=your-email@gmail.com
+   SMTP_PASS=your-app-password
+
+   # For Gmail, you need to:
+   # 1. Enable 2-Factor Authentication
+   # 2. Generate an App Password: https://myaccount.google.com/apppasswords
+   # 3. Use the App Password (not your regular password) in SMTP_PASS
+
+   # Renflair SMS Configuration
+   RENFLAIR_API_KEY=your-renflair-api-key
+   RENFLAIR_API_URL=https://sms.renflair.in
+   # Optional: Custom message endpoint (default: V2.php)
+   # Contact Renflair support to get the correct endpoint for custom messages
+   # Common endpoints: V2.php, V5.php, V8.php, or a custom endpoint
+   RENFLAIR_CUSTOM_ENDPOINT=V2.php
    ```
 
 4. **Run the development server**
@@ -136,6 +171,24 @@ virtualbill/
 - `POST /api/admin/login` - Admin login
 - `POST /api/admin/logout` - Admin logout
 - `GET /api/admin/check` - Check admin authentication
+- `GET /api/admin/customers` - Get all customers with outstanding balances
+- `GET /api/admin/customers/[id]` - Get customer details with bills
+- `POST /api/admin/sms/send` - Send SMS to customer
+
+### Bills
+- `POST /api/bills` - Create a new bill
+- `GET /api/bills` - Get bills (user's own or all for admin)
+- `PUT /api/bills/[id]` - Update bill payment (admin only)
+
+### User Authentication
+- `POST /api/auth/signup` - Create new user account
+- `POST /api/auth/verify-otp` - Verify email with OTP
+- `POST /api/auth/resend-otp` - Resend OTP to email
+- `POST /api/auth/login` - User login
+- `POST /api/auth/logout` - User logout
+- `GET /api/auth/check` - Check user authentication
+- `POST /api/auth/forgot-password` - Request password reset OTP
+- `POST /api/auth/reset-password` - Reset password with OTP
 
 ## 🔒 Security
 
@@ -166,11 +219,14 @@ Make sure to set all environment variables in your hosting platform:
 5. Add/Edit/Delete products with images
 
 ### User Panel
-1. Browse products on the home page
-2. Use search and filters to find products
-3. Add products to cart
-4. Adjust quantities in cart
-5. Generate bill and download/print
+1. Sign up with email, phone, and password
+2. Verify email with OTP sent to your email
+3. Login to your account
+4. Browse products on the home page
+5. Use search and filters to find products
+6. Add products to cart
+7. Adjust quantities in cart (on product cards or in cart)
+8. Generate bill (requires authentication) and download/print
 
 ## 🐛 Troubleshooting
 

@@ -6,6 +6,8 @@ import { toast } from 'react-toastify';
 import ProductCard from '@/components/ProductCard';
 import Cart from '@/components/Cart';
 import VirtualBill from '@/components/VirtualBill';
+import AuthPopup from '@/components/AuthPopup';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface Product {
   _id: string;
@@ -26,6 +28,7 @@ interface CartItem extends Product {
  * Product listing with cart functionality
  */
 export default function Home() {
+  const { user, logout } = useAuth();
   const [products, setProducts] = useState<Product[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -35,6 +38,7 @@ export default function Home() {
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [showCart, setShowCart] = useState(false);
   const [showBill, setShowBill] = useState(false);
+  const [showAuthPopup, setShowAuthPopup] = useState(false);
 
   useEffect(() => {
     fetchProducts();
@@ -101,7 +105,10 @@ export default function Home() {
         .map((item) => {
           if (item._id === id) {
             const newQuantity = item.quantity + delta;
-            if (newQuantity <= 0) return null;
+            if (newQuantity <= 0) {
+              // Remove from cart if quantity becomes 0
+              return null;
+            }
             if (newQuantity > item.stockQuantity) {
               toast.error('Maximum stock available reached');
               return item;
@@ -134,6 +141,29 @@ export default function Home() {
               <p className="text-sm text-gray-600">Electrical Shop</p>
             </div>
             <div className="flex items-center gap-4">
+              {user ? (
+                <>
+                  <a
+                    href="/profile"
+                    className="text-sm text-gray-600 hover:text-purple-600 transition-colors"
+                  >
+                    {user.name || user.email}
+                  </a>
+                  <button
+                    onClick={logout}
+                    className="text-gray-600 hover:text-purple-600 transition-colors"
+                  >
+                    Logout
+                  </button>
+                </>
+              ) : (
+                <a
+                  href="/auth/login"
+                  className="text-gray-600 hover:text-purple-600 transition-colors"
+                >
+                  Login
+                </a>
+              )}
               <button
                 onClick={() => setShowCart(true)}
                 className="relative bg-purple-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-purple-700 transition-colors"
@@ -216,13 +246,18 @@ export default function Home() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {products.map((product) => (
-              <ProductCard
-                key={product._id}
-                product={product}
-                onAddToCart={addToCart}
-              />
-            ))}
+            {products.map((product) => {
+              const cartItem = cart.find((item) => item._id === product._id);
+              return (
+                <ProductCard
+                  key={product._id}
+                  product={product}
+                  onAddToCart={addToCart}
+                  onUpdateQuantity={updateQuantity}
+                  cartQuantity={cartItem?.quantity || 0}
+                />
+              );
+            })}
           </div>
         )}
       </main>
@@ -239,6 +274,12 @@ export default function Home() {
               toast.error('Cart is empty');
               return;
             }
+            // Check if user is authenticated
+            if (!user) {
+              setShowAuthPopup(true);
+              setShowCart(false);
+              return;
+            }
             setShowCart(false);
             setShowBill(true);
           }}
@@ -250,6 +291,19 @@ export default function Home() {
         <VirtualBill
           cart={cart}
           onClose={() => setShowBill(false)}
+        />
+      )}
+
+      {/* Auth Popup */}
+      {showAuthPopup && (
+        <AuthPopup
+          onClose={() => setShowAuthPopup(false)}
+          onSuccess={() => {
+            setShowAuthPopup(false);
+            if (cart.length > 0) {
+              setShowBill(true);
+            }
+          }}
         />
       )}
     </div>

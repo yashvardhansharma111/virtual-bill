@@ -18,6 +18,8 @@ interface ProductCardProps {
   onEdit?: (product: Product) => void;
   onDelete?: (id: string) => void;
   onAddToCart?: (product: Product) => void;
+  onUpdateQuantity?: (id: string, delta: number) => void;
+  cartQuantity?: number; // Current quantity in cart
   isAdmin?: boolean;
 }
 
@@ -30,6 +32,8 @@ export default function ProductCard({
   onEdit,
   onDelete,
   onAddToCart,
+  onUpdateQuantity,
+  cartQuantity = 0,
   isAdmin = false,
 }: ProductCardProps) {
   return (
@@ -78,6 +82,24 @@ export default function ProductCard({
               className="flex-1 bg-red-500 text-white py-2 rounded-lg font-semibold hover:bg-red-600 transition-colors"
             >
               Delete
+            </button>
+          </div>
+        ) : cartQuantity > 0 ? (
+          // Show quantity controls if item is in cart
+          <div className="flex items-center justify-center gap-3">
+            <button
+              onClick={() => onUpdateQuantity?.(product._id, -1)}
+              className="w-10 h-10 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors flex items-center justify-center font-bold text-lg"
+            >
+              −
+            </button>
+            <span className="font-semibold text-lg w-8 text-center">{cartQuantity}</span>
+            <button
+              onClick={() => onUpdateQuantity?.(product._id, 1)}
+              disabled={cartQuantity >= product.stockQuantity}
+              className="w-10 h-10 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors flex items-center justify-center font-bold text-lg disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              +
             </button>
           </div>
         ) : (

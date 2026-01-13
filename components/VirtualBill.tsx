@@ -1,6 +1,8 @@
 'use client';
 
 import { useRef, useState } from 'react';
+import axios from 'axios';
+import { toast } from 'react-toastify';
 import { formatCurrency, formatDate } from '@/lib/utils';
 
 interface Product {
@@ -28,9 +30,11 @@ interface VirtualBillProps {
  */
 export default function VirtualBill({ cart, onClose }: VirtualBillProps) {
   const billRef = useRef<HTMLDivElement>(null);
-  const [billNumber] = useState(() => String(Math.floor(Math.random() * 1000)).padStart(3, '0'));
+  const [billNumber] = useState(() => `BILL-${Date.now()}-${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`);
   const [customerName, setCustomerName] = useState('');
   const [customerVillage, setCustomerVillage] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
 
   // Shop details (can be customized)
   const shopName = 'शिव ट्रेडर्स';
@@ -54,32 +58,87 @@ export default function VirtualBill({ cart, onClose }: VirtualBillProps) {
     window.print();
   };
 
+  const handleSaveBill = async () => {
+    if (!customerName.trim()) {
+      toast.error('Please enter customer name');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const items = cart.map((item) => ({
+        productId: item._id,
+        name: item.name,
+        brand: item.brand,
+        type: item.type,
+        quantity: item.quantity,
+        price: item.price,
+        total: item.price * item.quantity,
+      }));
+
+      const response = await axios.post('/api/bills', {
+        billNumber,
+        customerName: customerName.trim(),
+        customerVillage: customerVillage.trim(),
+        items,
+        subtotal,
+        grandTotal,
+      });
+
+      if (response.data.success) {
+        setSaved(true);
+        toast.success('Bill saved successfully!');
+      } else {
+        toast.error(response.data.error || 'Failed to save bill');
+      }
+    } catch (error: any) {
+      console.error('Error saving bill:', error);
+      toast.error(error.response?.data?.error || 'Failed to save bill');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="sticky top-0 bg-white border-b border-gray-200 p-6 flex justify-between items-center">
           <h2 className="text-2xl font-bold text-gray-800">बिल (Bill Receipt)</h2>
-          <div className="flex gap-2">
-            <button
-              onClick={handleDownloadPDF}
-              className="bg-purple-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-purple-700 transition-colors"
-            >
-              PDF डाउनलोड
-            </button>
-            <button
-              onClick={handlePrint}
-              className="bg-gray-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-gray-700 transition-colors"
-            >
-              प्रिंट
-            </button>
-            <button
-              onClick={onClose}
-              className="text-gray-500 hover:text-gray-700 text-2xl"
-            >
-              ×
-            </button>
-          </div>
+              <div className="flex gap-2">
+                {!saved && (
+                  <button
+                    onClick={handleSaveBill}
+                    disabled={saving}
+                    className="bg-green-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-green-700 transition-colors disabled:opacity-50"
+                  >
+                    {saving ? 'Saving...' : 'Save Bill'}
+                  </button>
+                )}
+                {saved && (
+                  <span className="bg-green-100 text-green-700 px-4 py-2 rounded-lg font-semibold">
+                    ✓ Saved
+                  </span>
+                )}
+                <button
+                  onClick={handleDownloadPDF}
+                  className="bg-purple-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-purple-700 transition-colors"
+                >
+                  PDF डाउनलोड
+                </button>
+                <button
+                  onClick={handlePrint}
+                  className="bg-gray-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-gray-700 transition-colors"
+                >
+                  प्रिंट
+                </button>
+                <button
+                  onClick={onClose}
+                  className="text-gray-500 hover:text-gray-700 text-2xl"
+                >
+                  ×
+                </button>
+              </div>
         </div>
 
         {/* Bill Content */}
