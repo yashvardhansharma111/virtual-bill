@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import { formatCurrency, formatDate } from '@/lib/utils';
@@ -22,20 +22,36 @@ interface CartItem extends Product {
 interface VirtualBillProps {
   cart: CartItem[];
   onClose: () => void;
+  initialCustomerName?: string;
+  initialCustomerPhone?: string;
+  initialCustomerAddress?: string;
 }
 
 /**
  * Virtual Bill Component
  * Displays traditional Indian shop receipt format with Hindi text
  */
-export default function VirtualBill({ cart, onClose }: VirtualBillProps) {
+export default function VirtualBill({ 
+  cart, 
+  onClose,
+  initialCustomerName = '',
+  initialCustomerPhone = '',
+  initialCustomerAddress = '',
+}: VirtualBillProps) {
   const billRef = useRef<HTMLDivElement>(null);
   const [billNumber] = useState(() => `BILL-${Date.now()}-${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`);
-  const [customerName, setCustomerName] = useState('');
-  const [customerPhone, setCustomerPhone] = useState('');
-  const [customerAddress, setCustomerAddress] = useState('');
+  const [customerName, setCustomerName] = useState(initialCustomerName);
+  const [customerPhone, setCustomerPhone] = useState(initialCustomerPhone);
+  const [customerAddress, setCustomerAddress] = useState(initialCustomerAddress);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+
+  // Update state when initial values change
+  useEffect(() => {
+    setCustomerName(initialCustomerName);
+    setCustomerPhone(initialCustomerPhone);
+    setCustomerAddress(initialCustomerAddress);
+  }, [initialCustomerName, initialCustomerPhone, initialCustomerAddress]);
 
   // Shop details (can be customized)
   const shopName = 'शिव ट्रेडर्स';

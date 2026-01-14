@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import Bill from '@/models/Bill';
+import mongoose from 'mongoose';
 
 /**
  * POST /api/bills
@@ -37,17 +38,42 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Validate items is an array and not empty
+    if (!Array.isArray(items)) {
+      return NextResponse.json(
+        { success: false, error: 'Items must be an array' },
+        { status: 400 }
+      );
+    }
+    if (items.length === 0) {
+      return NextResponse.json(
+        { success: false, error: 'Items array cannot be empty' },
+        { status: 400 }
+      );
+    }
+
+    // Convert productId strings to ObjectIds and ensure all required fields
+    const formattedItems = items.map((item: any) => ({
+      productId: new mongoose.Types.ObjectId(item.productId),
+      name: item.name,
+      brand: item.brand || '',
+      type: item.type || '',
+      quantity: Number(item.quantity),
+      price: Number(item.price),
+      total: Number(item.total || item.price * item.quantity),
+    }));
+
     // Create bill
     const bill = await Bill.create({
       billNumber,
       customerName,
       customerPhone,
       customerAddress: customerAddress || '',
-      items,
-      subtotal,
-      grandTotal,
+      items: formattedItems,
+      subtotal: Number(subtotal),
+      grandTotal: Number(grandTotal),
       paidAmount: 0,
-      outstandingAmount: grandTotal,
+      outstandingAmount: Number(grandTotal),
       status: 'pending',
     });
 

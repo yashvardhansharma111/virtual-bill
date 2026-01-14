@@ -35,6 +35,12 @@ export default function Home() {
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [showCart, setShowCart] = useState(false);
   const [showBill, setShowBill] = useState(false);
+  const [showCustomerForm, setShowCustomerForm] = useState(false);
+  const [customerDetails, setCustomerDetails] = useState({
+    name: '',
+    phone: '',
+    address: '',
+  });
 
   useEffect(() => {
     fetchProducts();
@@ -138,7 +144,13 @@ export default function Home() {
             </div>
             <div className="flex items-center gap-4">
               <button
-                onClick={() => setShowCart(true)}
+                onClick={() => {
+                  if (totalItems === 0) {
+                    toast.error('Cart is empty');
+                    return;
+                  }
+                  setShowCustomerForm(true);
+                }}
                 className="relative bg-purple-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-purple-700 transition-colors"
               >
                 Cart
@@ -253,11 +265,102 @@ export default function Home() {
         />
       )}
 
+      {/* Customer Details Form Modal */}
+      {showCustomerForm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6">
+            <h2 className="text-2xl font-bold text-gray-800 mb-6">Customer Details</h2>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (!customerDetails.name.trim()) {
+                  toast.error('Please enter customer name');
+                  return;
+                }
+                if (!customerDetails.phone.trim()) {
+                  toast.error('Please enter customer phone number');
+                  return;
+                }
+                setShowCustomerForm(false);
+                setShowCart(true);
+              }}
+              className="space-y-4"
+            >
+              <div>
+                <label htmlFor="customerName" className="block text-sm font-medium text-gray-700 mb-2">
+                  Customer Name <span className="text-red-500">*</span>
+                </label>
+                <input
+                  id="customerName"
+                  type="text"
+                  value={customerDetails.name}
+                  onChange={(e) => setCustomerDetails({ ...customerDetails, name: e.target.value })}
+                  placeholder="Enter customer name"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition"
+                  required
+                />
+              </div>
+              <div>
+                <label htmlFor="customerPhone" className="block text-sm font-medium text-gray-700 mb-2">
+                  Phone Number <span className="text-red-500">*</span>
+                </label>
+                <input
+                  id="customerPhone"
+                  type="text"
+                  value={customerDetails.phone}
+                  onChange={(e) => setCustomerDetails({ ...customerDetails, phone: e.target.value })}
+                  placeholder="Enter phone number"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition"
+                  required
+                />
+              </div>
+              <div>
+                <label htmlFor="customerAddress" className="block text-sm font-medium text-gray-700 mb-2">
+                  Address (Optional)
+                </label>
+                <textarea
+                  id="customerAddress"
+                  value={customerDetails.address}
+                  onChange={(e) => setCustomerDetails({ ...customerDetails, address: e.target.value })}
+                  placeholder="Enter address"
+                  rows={3}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition"
+                />
+              </div>
+              <div className="flex gap-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowCustomerForm(false);
+                    setCustomerDetails({ name: '', phone: '', address: '' });
+                  }}
+                  className="flex-1 bg-gray-200 text-gray-800 px-4 py-3 rounded-lg font-semibold hover:bg-gray-300 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 bg-purple-600 text-white px-4 py-3 rounded-lg font-semibold hover:bg-purple-700 transition-colors"
+                >
+                  Continue to Cart
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* Virtual Bill */}
       {showBill && (
         <VirtualBill
           cart={cart}
-          onClose={() => setShowBill(false)}
+          onClose={() => {
+            setShowBill(false);
+            setCustomerDetails({ name: '', phone: '', address: '' });
+          }}
+          initialCustomerName={customerDetails.name}
+          initialCustomerPhone={customerDetails.phone}
+          initialCustomerAddress={customerDetails.address}
         />
       )}
     </div>
