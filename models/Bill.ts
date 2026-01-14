@@ -46,20 +46,51 @@ const BillSchema: Schema = new Schema(
       trim: true,
       default: '',
     },
-    items: [
-      {
-        productId: {
-          type: Schema.Types.ObjectId,
-          ref: 'Product',
+    items: {
+      type: [
+        {
+          productId: {
+            type: Schema.Types.ObjectId,
+            ref: 'Product',
+            required: true,
+          },
+          name: {
+            type: String,
+            required: true,
+          },
+          brand: {
+            type: String,
+            default: '',
+          },
+          type: {
+            type: String,
+            default: '',
+          },
+          quantity: {
+            type: Number,
+            required: true,
+            min: 1,
+          },
+          price: {
+            type: Number,
+            required: true,
+            min: 0,
+          },
+          total: {
+            type: Number,
+            required: true,
+            min: 0,
+          },
         },
-        name: String,
-        brand: String,
-        type: String,
-        quantity: Number,
-        price: Number,
-        total: Number,
+      ],
+      required: true,
+      validate: {
+        validator: function(v: any) {
+          return Array.isArray(v) && v.length > 0;
+        },
+        message: 'Items must be a non-empty array',
       },
-    ],
+    },
     subtotal: {
       type: Number,
       required: true,

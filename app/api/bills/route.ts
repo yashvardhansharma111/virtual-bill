@@ -11,7 +11,14 @@ export async function POST(request: NextRequest) {
   try {
     await connectDB();
 
-    const {
+    const body = await request.json();
+    
+    // Debug logging
+    console.log('Received body type:', typeof body);
+    console.log('Items type:', typeof body.items);
+    console.log('Items value:', body.items);
+    
+    let {
       billNumber,
       customerName,
       customerPhone,
@@ -19,7 +26,21 @@ export async function POST(request: NextRequest) {
       items,
       subtotal,
       grandTotal,
-    } = await request.json();
+    } = body;
+
+    // Parse items if it's a string (shouldn't happen, but handle it)
+    if (typeof items === 'string') {
+      try {
+        items = JSON.parse(items);
+        console.log('Parsed items from string:', items);
+      } catch (parseError) {
+        console.error('Failed to parse items string:', parseError);
+        return NextResponse.json(
+          { success: false, error: 'Invalid items format' },
+          { status: 400 }
+        );
+      }
+    }
 
     // Validation
     if (!billNumber || !customerName || !customerPhone || !items || !grandTotal) {
@@ -40,8 +61,9 @@ export async function POST(request: NextRequest) {
 
     // Validate items is an array and not empty
     if (!Array.isArray(items)) {
+      console.error('Items is not an array. Type:', typeof items, 'Value:', items);
       return NextResponse.json(
-        { success: false, error: 'Items must be an array' },
+        { success: false, error: `Items must be an array. Received: ${typeof items}` },
         { status: 400 }
       );
     }
@@ -53,49 +75,104 @@ export async function POST(request: NextRequest) {
     }
 
     // Convert productId strings to ObjectIds and ensure all required fields
-    const formattedItems = items.map((item: any) => ({
-      productId: new mongoose.Types.ObjectId(item.productId),
-      name: item.name,
-      brand: item.brand || '',
-      type: item.type || '',
-      quantity: Number(item.quantity),
-      price: Number(item.price),
-      total: Number(item.total || item.price * item.quantity),
-    }));
+    let formattedItems;
+    try {
+      formattedItems = items.map((item: any) => {
+        // Validate item structure
+        if (!item || typeof item !== 'object') {
+          throw new Error(`Invalid item format: ${JSON.stringify(item)}`);
+        }
+        if (!item.productId) {
+          throw new Error('Item missing productId');
+        }
+        if (!item.name) {
+          throw new Error('Item missing name');
+        }
+        
+        // Convert productId to ObjectId
+        let productIdObj;
+        if (item.productId instanceof mongoose.Types.ObjectId) {
+          productIdObj = item.productId;
+        } else if (mongoose.Types.ObjectId.isValid(item.productId)) {
+          productIdObj = new mongoose.Types.ObjectId(item.productId);
+        } else {
+          throw new Error(`Invalid productId: ${item.productId}`);
+        }
+        
+        return {
+          productId: productIdObj,
+          name: String(item.name),
+          brand: String(item.brand || ''),
+          type: String(item.type || ''),
+          quantity: Number(item.quantity),
+          price: Number(item.price),
+          total: Number(item.total || (item.price * item.quantity)),
+        };
+      });
+    } catch (formatError: any) {
+      console.error('Error formatting items:', formatError);
+      return NextResponse.json(
+        { success: false, error: `Error formatting items: ${formatError.message}` },
+        { status: 400 }
+      );
+    }
 
-    // Create bill
-    const bill = await Bill.create({
-      billNumber,
-      customerName,
-      customerPhone,
-      customerAddress: customerAddress || '',
-      items: formattedItems,
-      subtotal: Number(subtotal),
-      grandTotal: Number(grandTotal),
-      paidAmount: 0,
-      outstandingAmount: Number(grandTotal),
-      status: 'pending',
-    });
+    // Log formatted items before creating bill (ObjectIds will show as strings in JSON)
+    console.log('Formatted items count:', formattedItems.length);
+    console.log('First item productId type:', formattedItems[0]?.productId?.constructor?.name);
+    console.log('First item productId value:', formattedItems[0]?.productId?.toString());
+    
+    // Create bill - ensure items is a plain array of objects
+    try {
+      // Create a new Bill instance to ensure proper schema handling
+      const billData = {
+        billNumber,
+        customerName,
+        customerPhone,
+        customerAddress: customerAddress || '',
+        items: formattedItems,
+        subtotal: Number(subtotal),
+        grandTotal: Number(grandTotal),
+        paidAmount: 0,
+        outstandingAmount: Number(grandTotal),
+        status: 'pending' as const,
+      };
+      
+      console.log('Bill data items type:', typeof billData.items);
+      console.log('Bill data items is array:', Array.isArray(billData.items));
+      
+      const bill = await Bill.create(billData);
 
-    return NextResponse.json(
-      {
-        success: true,
-        message: 'Bill created successfully',
-        bill: {
-          id: bill._id.toString(),
-          billNumber: bill.billNumber,
-          grandTotal: bill.grandTotal,
-          outstandingAmount: bill.outstandingAmount,
+      return NextResponse.json(
+        {
+          success: true,
+          message: 'Bill created successfully',
+          bill: {
+            id: bill._id.toString(),
+            billNumber: bill.billNumber,
+            grandTotal: bill.grandTotal,
+            outstandingAmount: bill.outstandingAmount,
+          },
         },
-      },
-      { status: 201 }
-    );
+        { status: 201 }
+      );
+    } catch (createError: any) {
+      console.error('Bill.create() error:', createError);
+      console.error('Error details:', JSON.stringify(createError, null, 2));
+      throw createError;
+    }
+
   } catch (error: any) {
     console.error('Create bill error:', error);
+    console.error('Error stack:', error.stack);
+    if (error.errors) {
+      console.error('Validation errors:', JSON.stringify(error.errors, null, 2));
+    }
     return NextResponse.json(
       {
         success: false,
         error: error.message || 'Failed to create bill',
+        details: process.env.NODE_ENV === 'development' ? error.errors : undefined,
       },
       { status: 500 }
     );
