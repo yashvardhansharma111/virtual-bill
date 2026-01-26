@@ -132,21 +132,14 @@ export default function ProductForm({ product, onClose }: ProductFormProps) {
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Type *
               </label>
-              <select
+              <input
+                type="text"
                 value={formData.type}
                 onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+                placeholder="e.g., Switch, Wire, Bulb, MCB, Socket, Fan"
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none"
                 required
-              >
-                <option value="">Select Type</option>
-                <option value="Switch">Switch</option>
-                <option value="Wire">Wire</option>
-                <option value="Bulb">Bulb</option>
-                <option value="MCB">MCB</option>
-                <option value="Socket">Socket</option>
-                <option value="Fan">Fan</option>
-                <option value="Other">Other</option>
-              </select>
+              />
             </div>
 
             <div>

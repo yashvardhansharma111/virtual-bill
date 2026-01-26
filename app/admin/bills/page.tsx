@@ -6,6 +6,7 @@ import axios from 'axios';
 import { toast } from 'react-toastify';
 import AdminSidebar from '@/components/AdminSidebar';
 import { formatCurrency, formatDate } from '@/lib/utils';
+import VirtualBill from '@/components/VirtualBill';
 
 interface BillItem {
   productId: string;
@@ -39,6 +40,8 @@ export default function AdminBillsPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [selectedBill, setSelectedBill] = useState<Bill | null>(null);
+  const [showBill, setShowBill] = useState(false);
 
   useEffect(() => {
     checkAuth();
@@ -182,6 +185,7 @@ export default function AdminBillsPage() {
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Paid</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Outstanding</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
@@ -210,6 +214,17 @@ export default function AdminBillsPage() {
                           {bill.status.charAt(0).toUpperCase() + bill.status.slice(1)}
                         </span>
                       </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                        <button
+                          onClick={() => {
+                            setSelectedBill(bill);
+                            setShowBill(true);
+                          }}
+                          className="bg-purple-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-purple-700 transition-colors"
+                        >
+                          View/Edit Bill
+                        </button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -218,6 +233,24 @@ export default function AdminBillsPage() {
           )}
         </div>
       </main>
+
+      {/* Virtual Bill Modal */}
+      {showBill && selectedBill && (
+        <VirtualBill
+          bill={selectedBill}
+          isAdmin={true}
+          onClose={() => {
+            setShowBill(false);
+            setSelectedBill(null);
+            fetchBills(); // Refresh the list
+          }}
+          onBillSaved={() => {
+            setShowBill(false);
+            setSelectedBill(null);
+            fetchBills(); // Refresh the list
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -21,7 +21,8 @@ interface CartProps {
   onClose: () => void;
   onUpdateQuantity: (id: string, delta: number) => void;
   onRemove: (id: string) => void;
-  onGenerateBill: () => void;
+  onSubmitOrder: () => void;
+  submitting?: boolean;
 }
 
 /**
@@ -33,7 +34,8 @@ export default function Cart({
   onClose,
   onUpdateQuantity,
   onRemove,
-  onGenerateBill,
+  onSubmitOrder,
+  submitting = false,
 }: CartProps) {
   const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
@@ -118,10 +120,11 @@ export default function Cart({
               </div>
 
               <button
-                onClick={onGenerateBill}
-                className="w-full bg-purple-600 text-white py-3 rounded-lg font-semibold hover:bg-purple-700 transition-colors"
+                onClick={onSubmitOrder}
+                disabled={submitting}
+                className="w-full bg-purple-600 text-white py-3 rounded-lg font-semibold hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Generate Bill
+                {submitting ? 'Submitting...' : 'Submit Order'}
               </button>
             </>
           )}

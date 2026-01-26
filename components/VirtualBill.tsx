@@ -19,8 +19,39 @@ interface CartItem extends Product {
   quantity: number;
 }
 
+interface BillItem {
+  productId: string;
+  name: string;
+  brand: string;
+  type: string;
+  quantity: number;
+  price: number;
+  total: number;
+}
+
+interface Bill {
+  _id: string;
+  billNumber: string;
+  customerName: string;
+  customerPhone: string;
+  customerAddress: string;
+  items: BillItem[];
+  subtotal: number;
+  grandTotal: number;
+  paidAmount: number;
+  outstandingAmount: number;
+  status: 'pending' | 'partial' | 'paid';
+  createdAt: string;
+  updatedAt: string;
+}
+
 interface VirtualBillProps {
-  cart: CartItem[];
+  // Admin mode: pass bill object
+  bill?: Bill;
+  isAdmin?: boolean;
+  onBillSaved?: () => void;
+  // Customer mode (legacy): pass cart
+  cart?: CartItem[];
   onClose: () => void;
   initialCustomerName?: string;
   initialCustomerPhone?: string;
@@ -30,28 +61,48 @@ interface VirtualBillProps {
 /**
  * Virtual Bill Component
  * Displays traditional Indian shop receipt format with Hindi text
+ * Supports both admin mode (with payment management) and customer mode (legacy)
  */
 export default function VirtualBill({ 
-  cart, 
+  bill,
+  isAdmin = false,
+  onBillSaved,
+  cart,
   onClose,
   initialCustomerName = '',
   initialCustomerPhone = '',
   initialCustomerAddress = '',
 }: VirtualBillProps) {
   const billRef = useRef<HTMLDivElement>(null);
-  const [billNumber] = useState(() => `BILL-${Date.now()}-${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`);
-  const [customerName, setCustomerName] = useState(initialCustomerName);
-  const [customerPhone, setCustomerPhone] = useState(initialCustomerPhone);
-  const [customerAddress, setCustomerAddress] = useState(initialCustomerAddress);
+  
+  // Admin mode: use bill data
+  const [billNumber, setBillNumber] = useState(bill?.billNumber || `BILL-${Date.now()}-${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`);
+  const [customerName, setCustomerName] = useState(bill?.customerName || initialCustomerName);
+  const [customerPhone, setCustomerPhone] = useState(bill?.customerPhone || initialCustomerPhone);
+  const [customerAddress, setCustomerAddress] = useState(bill?.customerAddress || initialCustomerAddress);
+  const [paidAmount, setPaidAmount] = useState(bill?.paidAmount || 0);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
-  // Update state when initial values change
+  // Update state when bill prop changes
   useEffect(() => {
-    setCustomerName(initialCustomerName);
-    setCustomerPhone(initialCustomerPhone);
-    setCustomerAddress(initialCustomerAddress);
-  }, [initialCustomerName, initialCustomerPhone, initialCustomerAddress]);
+    if (bill) {
+      setBillNumber(bill.billNumber);
+      setCustomerName(bill.customerName);
+      setCustomerPhone(bill.customerPhone);
+      setCustomerAddress(bill.customerAddress);
+      setPaidAmount(bill.paidAmount);
+    }
+  }, [bill]);
+
+  // Update state when initial values change (customer mode)
+  useEffect(() => {
+    if (!bill) {
+      setCustomerName(initialCustomerName);
+      setCustomerPhone(initialCustomerPhone);
+      setCustomerAddress(initialCustomerAddress);
+    }
+  }, [initialCustomerName, initialCustomerPhone, initialCustomerAddress, bill]);
 
   // Shop details (can be customized)
   const shopName = 'शिव ट्रेडर्स';
@@ -61,17 +112,27 @@ export default function VirtualBill({
   const shopDescription = 'ईलेक्ट्रॉनिक्स & हार्डवेयर';
   const shopInfo = 'हमारे यहाँ लाईट फिटींग, नल फिटींग एवं हार्डवेयर सामग्री उपलब्ध है।';
 
-  const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const grandTotal = subtotal; // No tax for traditional format
+  // Calculate totals
+  const items = bill?.items || (cart?.map(item => ({
+    productId: item._id,
+    name: item.name,
+    brand: item.brand,
+    type: item.type,
+    quantity: item.quantity,
+    price: item.price,
+    total: item.price * item.quantity,
+  })) || []);
+  
+  const subtotal = bill?.subtotal || (cart?.reduce((sum, item) => sum + item.price * item.quantity, 0) || 0);
+  const grandTotal = bill?.grandTotal || subtotal;
+  const outstandingAmount = grandTotal - paidAmount;
+  const status = outstandingAmount === 0 ? 'paid' : paidAmount > 0 ? 'partial' : 'pending';
 
   const handlePrint = () => {
     window.print();
   };
 
   const handleDownloadPDF = () => {
-    // Use browser's native print-to-PDF functionality
-    // This preserves all HTML rendering including Hindi text perfectly
-    // User can select "Save as PDF" in the print dialog
     window.print();
   };
 
@@ -85,39 +146,72 @@ export default function VirtualBill({
       return;
     }
 
-    setSaving(true);
-    try {
-      const items = cart.map((item) => ({
-        productId: item._id,
-        name: item.name,
-        brand: item.brand,
-        type: item.type,
-        quantity: item.quantity,
-        price: item.price,
-        total: item.price * item.quantity,
-      }));
-
-      const response = await axios.post('/api/bills', {
-        billNumber,
-        customerName: customerName.trim(),
-        customerPhone: customerPhone.trim(),
-        customerAddress: customerAddress.trim(),
-        items,
-        subtotal,
-        grandTotal,
-      });
-
-      if (response.data.success) {
-        setSaved(true);
-        toast.success('Bill saved successfully!');
-      } else {
-        toast.error(response.data.error || 'Failed to save bill');
+    if (isAdmin && bill) {
+      // Admin mode: Update existing bill with payment
+      if (paidAmount < 0 || paidAmount > grandTotal) {
+        toast.error('Paid amount must be between 0 and total amount');
+        return;
       }
-    } catch (error: any) {
-      console.error('Error saving bill:', error);
-      toast.error(error.response?.data?.error || 'Failed to save bill');
-    } finally {
-      setSaving(false);
+
+      setSaving(true);
+      try {
+        const response = await axios.put(`/api/bills/${bill._id}`, {
+          paidAmount: Number(paidAmount),
+        });
+
+        if (response.data.success) {
+          setSaved(true);
+          toast.success('Bill updated successfully!');
+          if (onBillSaved) {
+            setTimeout(() => {
+              onBillSaved();
+            }, 1000);
+          }
+        } else {
+          toast.error(response.data.error || 'Failed to update bill');
+        }
+      } catch (error: any) {
+        console.error('Error updating bill:', error);
+        toast.error(error.response?.data?.error || 'Failed to update bill');
+      } finally {
+        setSaving(false);
+      }
+    } else if (cart && cart.length > 0) {
+      // Customer mode (legacy): Create new bill
+      setSaving(true);
+      try {
+        const billItems = cart.map((item) => ({
+          productId: item._id,
+          name: item.name,
+          brand: item.brand,
+          type: item.type,
+          quantity: item.quantity,
+          price: item.price,
+          total: item.price * item.quantity,
+        }));
+
+        const response = await axios.post('/api/bills', {
+          billNumber,
+          customerName: customerName.trim(),
+          customerPhone: customerPhone.trim(),
+          customerAddress: customerAddress.trim(),
+          items: billItems,
+          subtotal,
+          grandTotal,
+        });
+
+        if (response.data.success) {
+          setSaved(true);
+          toast.success('Bill saved successfully!');
+        } else {
+          toast.error(response.data.error || 'Failed to save bill');
+        }
+      } catch (error: any) {
+        console.error('Error saving bill:', error);
+        toast.error(error.response?.data?.error || 'Failed to save bill');
+      } finally {
+        setSaving(false);
+      }
     }
   };
 
@@ -127,7 +221,27 @@ export default function VirtualBill({
         {/* Header */}
         <div className="sticky top-0 bg-white border-b border-gray-200 p-6 flex justify-between items-center">
           <h2 className="text-2xl font-bold text-gray-800">बिल (Bill Receipt)</h2>
-              <div className="flex gap-2">
+          <div className="flex gap-2">
+            {isAdmin && (
+              <>
+                {!saved && (
+                  <button
+                    onClick={handleSaveBill}
+                    disabled={saving}
+                    className="bg-green-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-green-700 transition-colors disabled:opacity-50"
+                  >
+                    {saving ? 'Saving...' : 'Update Payment'}
+                  </button>
+                )}
+                {saved && (
+                  <span className="bg-green-100 text-green-700 px-4 py-2 rounded-lg font-semibold">
+                    ✓ Updated
+                  </span>
+                )}
+              </>
+            )}
+            {!isAdmin && (
+              <>
                 {!saved && (
                   <button
                     onClick={handleSaveBill}
@@ -142,25 +256,27 @@ export default function VirtualBill({
                     ✓ Saved
                   </span>
                 )}
-                <button
-                  onClick={handleDownloadPDF}
-                  className="bg-purple-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-purple-700 transition-colors"
-                >
-                  PDF डाउनलोड
-                </button>
-                <button
-                  onClick={handlePrint}
-                  className="bg-gray-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-gray-700 transition-colors"
-                >
-                  प्रिंट
-                </button>
-                <button
-                  onClick={onClose}
-                  className="text-gray-500 hover:text-gray-700 text-2xl"
-                >
-                  ×
-                </button>
-              </div>
+              </>
+            )}
+            <button
+              onClick={handleDownloadPDF}
+              className="bg-purple-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-purple-700 transition-colors"
+            >
+              PDF डाउनलोड
+            </button>
+            <button
+              onClick={handlePrint}
+              className="bg-gray-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-gray-700 transition-colors"
+            >
+              प्रिंट
+            </button>
+            <button
+              onClick={onClose}
+              className="text-gray-500 hover:text-gray-700 text-2xl"
+            >
+              ×
+            </button>
+          </div>
         </div>
 
         {/* Bill Content */}
@@ -191,35 +307,47 @@ export default function VirtualBill({
           <div className="mb-4 space-y-2">
             <div>
               <span className="font-semibold text-gray-800">श्रीमान: </span>
-              <input
-                type="text"
-                value={customerName}
-                onChange={(e) => setCustomerName(e.target.value)}
-                placeholder="ग्राहक का नाम"
-                className="border-b border-gray-300 px-2 py-1 outline-none focus:border-purple-600 print:border-none print:px-0"
-                required
-              />
+              {isAdmin ? (
+                <span className="text-gray-700">{customerName}</span>
+              ) : (
+                <input
+                  type="text"
+                  value={customerName}
+                  onChange={(e) => setCustomerName(e.target.value)}
+                  placeholder="ग्राहक का नाम"
+                  className="border-b border-gray-300 px-2 py-1 outline-none focus:border-purple-600 print:border-none print:px-0"
+                  required
+                />
+              )}
             </div>
             <div>
               <span className="font-semibold text-gray-800">फोन: </span>
-              <input
-                type="text"
-                value={customerPhone}
-                onChange={(e) => setCustomerPhone(e.target.value)}
-                placeholder="फोन नंबर"
-                className="border-b border-gray-300 px-2 py-1 outline-none focus:border-purple-600 print:border-none print:px-0"
-                required
-              />
+              {isAdmin ? (
+                <span className="text-gray-700">{customerPhone}</span>
+              ) : (
+                <input
+                  type="text"
+                  value={customerPhone}
+                  onChange={(e) => setCustomerPhone(e.target.value)}
+                  placeholder="फोन नंबर"
+                  className="border-b border-gray-300 px-2 py-1 outline-none focus:border-purple-600 print:border-none print:px-0"
+                  required
+                />
+              )}
             </div>
             <div>
               <span className="font-semibold text-gray-800">ग्राम/पता: </span>
-              <input
-                type="text"
-                value={customerAddress}
-                onChange={(e) => setCustomerAddress(e.target.value)}
-                placeholder="ग्राम/शहर/पता"
-                className="border-b border-gray-300 px-2 py-1 outline-none focus:border-purple-600 print:border-none print:px-0"
-              />
+              {isAdmin ? (
+                <span className="text-gray-700">{customerAddress || 'N/A'}</span>
+              ) : (
+                <input
+                  type="text"
+                  value={customerAddress}
+                  onChange={(e) => setCustomerAddress(e.target.value)}
+                  placeholder="ग्राम/शहर/पता"
+                  className="border-b border-gray-300 px-2 py-1 outline-none focus:border-purple-600 print:border-none print:px-0"
+                />
+              )}
             </div>
           </div>
 
@@ -236,8 +364,8 @@ export default function VirtualBill({
                 </tr>
               </thead>
               <tbody>
-                {cart.map((item, index) => (
-                  <tr key={item._id}>
+                {items.map((item, index) => (
+                  <tr key={item.productId || index}>
                     <td className="border border-gray-800 px-2 py-2 text-center text-sm">{index + 1}</td>
                     <td className="border border-gray-800 px-2 py-2 text-sm">
                       <div>
@@ -248,7 +376,7 @@ export default function VirtualBill({
                     <td className="border border-gray-800 px-2 py-2 text-center text-sm">{item.quantity}</td>
                     <td className="border border-gray-800 px-2 py-2 text-center text-sm">{formatCurrency(item.price)}</td>
                     <td className="border border-gray-800 px-2 py-2 text-center text-sm font-semibold">
-                      {formatCurrency(item.price * item.quantity)}
+                      {formatCurrency(item.total)}
                     </td>
                   </tr>
                 ))}
@@ -263,6 +391,59 @@ export default function VirtualBill({
               </tfoot>
             </table>
           </div>
+
+          {/* Payment Details (Admin Mode) */}
+          {isAdmin && (
+            <div className="mb-6 border-t-2 border-gray-300 pt-4">
+              <h3 className="font-bold text-gray-800 mb-3">भुगतान विवरण (Payment Details)</h3>
+              <div className="space-y-3">
+                <div className="flex justify-between items-center">
+                  <span className="font-semibold text-gray-800">कुल राशि (Total Amount):</span>
+                  <span className="text-lg font-bold text-gray-900">{formatCurrency(grandTotal)}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="font-semibold text-gray-800">भुगतान राशि (Paid Amount):</span>
+                  <div className="flex items-center gap-2">
+                    {!saved && (
+                      <input
+                        type="number"
+                        value={paidAmount}
+                        onChange={(e) => {
+                          const value = Math.max(0, Math.min(grandTotal, Number(e.target.value) || 0));
+                          setPaidAmount(value);
+                        }}
+                        min="0"
+                        max={grandTotal}
+                        step="0.01"
+                        className="w-32 border border-gray-300 px-3 py-2 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none text-right font-semibold"
+                      />
+                    )}
+                    {saved && (
+                      <span className="text-lg font-bold text-green-600">{formatCurrency(paidAmount)}</span>
+                    )}
+                  </div>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="font-semibold text-gray-800">शेष राशि (Outstanding):</span>
+                  <span className={`text-lg font-bold ${outstandingAmount > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                    {formatCurrency(outstandingAmount)}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="font-semibold text-gray-800">स्थिति (Status):</span>
+                  <span className={`px-3 py-1 rounded-full text-sm font-semibold ${
+                    status === 'paid' ? 'bg-green-100 text-green-800' :
+                    status === 'partial' ? 'bg-yellow-100 text-yellow-800' :
+                    'bg-red-100 text-red-800'
+                  }`}>
+                    {status === 'paid' ? 'पूर्ण भुगतान (Paid)' :
+                     status === 'partial' ? 'आंशिक भुगतान (Partial)' :
+                     'लंबित (Pending)'}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Terms and Conditions */}
           <div className="mb-6 border-t-2 border-gray-300 pt-4">
