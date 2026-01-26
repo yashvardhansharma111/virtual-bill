@@ -189,7 +189,7 @@ export default function Home() {
               <h1 className="text-2xl font-bold text-purple-600">Virtual Bill</h1>
               <p className="text-sm text-gray-600">Electrical Shop</p>
             </div>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 sm:gap-4">
               <button
                 onClick={() => {
                   if (totalItems === 0) {
@@ -198,18 +198,19 @@ export default function Home() {
                   }
                   setShowCustomerForm(true);
                 }}
-                className="relative bg-purple-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-purple-700 transition-colors"
+                className="relative bg-purple-600 text-white px-3 sm:px-6 py-2 rounded-lg font-semibold hover:bg-purple-700 transition-colors text-sm sm:text-base"
               >
-                Cart
+                <span className="hidden sm:inline">Cart</span>
+                <span className="sm:hidden">🛒</span>
                 {totalItems > 0 && (
-                  <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-6 h-6 flex items-center justify-center">
+                  <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center text-xs">
                     {totalItems}
                   </span>
                 )}
               </button>
               <a
                 href="/admin/login"
-                className="text-gray-600 hover:text-purple-600 transition-colors"
+                className="text-gray-600 hover:text-purple-600 transition-colors text-sm sm:text-base px-2 sm:px-0"
               >
                 Admin
               </a>
@@ -219,7 +220,7 @@ export default function Home() {
       </header>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
         {/* Search Bar - Prominent with Suggestions */}
         <div className="bg-white rounded-xl shadow-lg p-4 mb-6">
           <div className="relative">
@@ -271,8 +272,8 @@ export default function Home() {
         </div>
 
         {/* Filters */}
-        <div className="bg-white rounded-xl shadow-lg p-6 mb-8">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6 mb-6 sm:mb-8">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
             <select
               value={typeFilter}
               onChange={(e) => setTypeFilter(e.target.value)}
@@ -306,7 +307,7 @@ export default function Home() {
 
         {/* Products Grid */}
         {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
             {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
               <div key={i} className="bg-white rounded-xl shadow p-6 animate-pulse">
                 <div className="h-48 bg-gray-200 rounded-lg mb-4"></div>
@@ -320,7 +321,7 @@ export default function Home() {
             <p className="text-gray-600 text-lg">No products found</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
             {products.map((product) => {
               const cartItem = cart.find((item) => item._id === product._id);
               return (
@@ -411,8 +412,8 @@ export default function Home() {
 
       {/* Customer Details Form Modal */}
       {showCustomerForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6">
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-2 sm:p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[95vh] sm:max-h-[90vh] overflow-y-auto p-4 sm:p-6">
             <h2 className="text-2xl font-bold text-gray-800 mb-6">Customer Details</h2>
             <form
               onSubmit={(e) => {

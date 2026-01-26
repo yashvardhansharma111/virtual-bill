@@ -99,26 +99,26 @@ export default function AdminBillsPage() {
   return (
     <div className="flex min-h-screen bg-gray-100">
       <AdminSidebar />
-      <main className="flex-1 p-8">
-        <h1 className="text-3xl font-bold text-gray-800 mb-6">All Bills</h1>
+      <main className="flex-1 p-4 sm:p-6 lg:p-8 w-full lg:ml-0">
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-4 sm:mb-6">All Bills</h1>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white rounded-xl shadow-lg p-6">
-            <h3 className="text-lg font-semibold text-gray-700 mb-2">Total Bills</h3>
-            <p className="text-4xl font-bold text-purple-600">{totalBills}</p>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 mb-6 sm:mb-8">
+          <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6">
+            <h3 className="text-sm sm:text-lg font-semibold text-gray-700 mb-1 sm:mb-2">Total Bills</h3>
+            <p className="text-2xl sm:text-4xl font-bold text-purple-600">{totalBills}</p>
           </div>
-          <div className="bg-white rounded-xl shadow-lg p-6">
-            <h3 className="text-lg font-semibold text-gray-700 mb-2">Total Amount</h3>
-            <p className="text-4xl font-bold text-blue-600">{formatCurrency(totalAmount)}</p>
+          <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6">
+            <h3 className="text-sm sm:text-lg font-semibold text-gray-700 mb-1 sm:mb-2">Total Amount</h3>
+            <p className="text-xl sm:text-2xl lg:text-4xl font-bold text-blue-600">{formatCurrency(totalAmount)}</p>
           </div>
-          <div className="bg-white rounded-xl shadow-lg p-6">
-            <h3 className="text-lg font-semibold text-gray-700 mb-2">Outstanding</h3>
-            <p className="text-4xl font-bold text-red-600">{formatCurrency(totalOutstanding)}</p>
+          <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6">
+            <h3 className="text-sm sm:text-lg font-semibold text-gray-700 mb-1 sm:mb-2">Outstanding</h3>
+            <p className="text-xl sm:text-2xl lg:text-4xl font-bold text-red-600">{formatCurrency(totalOutstanding)}</p>
           </div>
-          <div className="bg-white rounded-xl shadow-lg p-6">
-            <h3 className="text-lg font-semibold text-gray-700 mb-2">Paid</h3>
-            <p className="text-4xl font-bold text-green-600">{formatCurrency(totalPaid)}</p>
+          <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6">
+            <h3 className="text-sm sm:text-lg font-semibold text-gray-700 mb-1 sm:mb-2">Paid</h3>
+            <p className="text-xl sm:text-2xl lg:text-4xl font-bold text-green-600">{formatCurrency(totalPaid)}</p>
           </div>
         </div>
 
@@ -169,12 +169,14 @@ export default function AdminBillsPage() {
         {/* Bills Table */}
         <div className="bg-white rounded-xl shadow-lg overflow-hidden">
           {loading ? (
-            <div className="p-6 text-center text-gray-600">Loading bills...</div>
+            <div className="p-4 sm:p-6 text-center text-gray-600">Loading bills...</div>
           ) : bills.length === 0 ? (
-            <div className="p-6 text-center text-gray-600">No bills found.</div>
+            <div className="p-4 sm:p-6 text-center text-gray-600">No bills found.</div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
+            <>
+              {/* Desktop Table */}
+              <div className="hidden lg:block overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Bill No.</th>
@@ -229,7 +231,65 @@ export default function AdminBillsPage() {
                   ))}
                 </tbody>
               </table>
-            </div>
+              </div>
+              
+              {/* Mobile Card View */}
+              <div className="lg:hidden divide-y divide-gray-200">
+                {bills.map((bill) => (
+                  <div key={bill._id} className="p-4 space-y-3">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <p className="font-semibold text-gray-900">{bill.billNumber}</p>
+                        <p className="text-sm text-gray-600">{bill.customerName}</p>
+                        {bill.customerAddress && (
+                          <p className="text-xs text-gray-500 mt-1">{bill.customerAddress}</p>
+                        )}
+                      </div>
+                      <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
+                        bill.status === 'paid' ? 'bg-green-100 text-green-800' :
+                        bill.status === 'partial' ? 'bg-yellow-100 text-yellow-800' :
+                        'bg-red-100 text-red-800'
+                      }`}>
+                        {bill.status.charAt(0).toUpperCase() + bill.status.slice(1)}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 text-sm">
+                      <div>
+                        <p className="text-gray-500">Phone</p>
+                        <p className="font-medium">{bill.customerPhone}</p>
+                      </div>
+                      <div>
+                        <p className="text-gray-500">Date</p>
+                        <p className="font-medium">{formatDate(new Date(bill.createdAt))}</p>
+                      </div>
+                      <div>
+                        <p className="text-gray-500">Total</p>
+                        <p className="font-medium">{formatCurrency(bill.grandTotal)}</p>
+                      </div>
+                      <div>
+                        <p className="text-gray-500">Paid</p>
+                        <p className="font-medium">{formatCurrency(bill.paidAmount)}</p>
+                      </div>
+                      <div className="col-span-2">
+                        <p className="text-gray-500">Outstanding</p>
+                        <p className={`font-semibold ${bill.outstandingAmount > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                          {formatCurrency(bill.outstandingAmount)}
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setSelectedBill(bill);
+                        setShowBill(true);
+                      }}
+                      className="w-full bg-purple-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-purple-700 transition-colors text-sm"
+                    >
+                      View/Edit Bill
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </>
           )}
         </div>
       </main>

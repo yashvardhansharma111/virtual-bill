@@ -134,42 +134,42 @@ export default function CustomersPage() {
   return (
     <div className="min-h-screen bg-gray-50 flex">
       <AdminSidebar />
-      <div className="flex-1 p-8">
+      <div className="flex-1 p-4 sm:p-6 lg:p-8 w-full lg:ml-0">
         <div className="max-w-7xl mx-auto">
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold text-gray-800 mb-2">Customers</h1>
-            <p className="text-gray-600">Manage customers and outstanding balances</p>
+          <div className="mb-6 sm:mb-8">
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-2">Customers</h1>
+            <p className="text-sm sm:text-base text-gray-600">Manage customers and outstanding balances</p>
           </div>
 
           {/* Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <div className="bg-white rounded-xl shadow-lg p-6">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
+            <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-600 mb-1">Total Customers</p>
-                  <p className="text-3xl font-bold text-gray-800">{customers.length}</p>
+                  <p className="text-xs sm:text-sm text-gray-600 mb-1">Total Customers</p>
+                  <p className="text-2xl sm:text-3xl font-bold text-gray-800">{customers.length}</p>
                 </div>
-                <div className="text-4xl">👥</div>
+                <div className="text-2xl sm:text-4xl">👥</div>
               </div>
             </div>
-            <div className="bg-white rounded-xl shadow-lg p-6">
+            <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-600 mb-1">With Outstanding</p>
-                  <p className="text-3xl font-bold text-purple-600">{customersWithBalance}</p>
+                  <p className="text-xs sm:text-sm text-gray-600 mb-1">With Outstanding</p>
+                  <p className="text-2xl sm:text-3xl font-bold text-purple-600">{customersWithBalance}</p>
                 </div>
-                <div className="text-4xl">💰</div>
+                <div className="text-2xl sm:text-4xl">💰</div>
               </div>
             </div>
-            <div className="bg-white rounded-xl shadow-lg p-6">
+            <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-600 mb-1">Total Outstanding</p>
-                  <p className="text-3xl font-bold text-red-600">
+                  <p className="text-xs sm:text-sm text-gray-600 mb-1">Total Outstanding</p>
+                  <p className="text-xl sm:text-2xl lg:text-3xl font-bold text-red-600">
                     {formatCurrency(totalOutstanding)}
                   </p>
                 </div>
-                <div className="text-4xl">📊</div>
+                <div className="text-2xl sm:text-4xl">📊</div>
               </div>
             </div>
           </div>
@@ -204,7 +204,8 @@ export default function CustomersPage() {
             </div>
           ) : (
             <div className="bg-white rounded-xl shadow-lg overflow-hidden">
-              <div className="overflow-x-auto">
+              {/* Desktop Table */}
+              <div className="hidden lg:block overflow-x-auto">
                 <table className="w-full">
                   <thead className="bg-purple-50">
                     <tr>
@@ -270,6 +271,52 @@ export default function CustomersPage() {
                     ))}
                   </tbody>
                 </table>
+              </div>
+              
+              {/* Mobile Card View */}
+              <div className="lg:hidden divide-y divide-gray-200">
+                {customers.map((customer) => (
+                  <div key={customer.id} className="p-4 space-y-3">
+                    <div>
+                      <p className="font-semibold text-gray-800">{customer.name}</p>
+                      <p className="text-sm text-gray-500">{customer.email}</p>
+                      <p className="text-sm text-gray-700 mt-1">{customer.phone}</p>
+                      {customer.address && (
+                        <p className="text-xs text-gray-500 mt-1">{customer.address}</p>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-3 gap-2 text-sm">
+                      <div>
+                        <p className="text-gray-500">Total Bills</p>
+                        <p className="font-medium">{customer.totalBills}</p>
+                      </div>
+                      <div>
+                        <p className="text-gray-500">Pending</p>
+                        <p className="font-semibold text-orange-600">{customer.pendingBills}</p>
+                      </div>
+                      <div>
+                        <p className="text-gray-500">Outstanding</p>
+                        <p className={`font-bold ${customer.outstandingBalance > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                          {formatCurrency(customer.outstandingBalance)}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => router.push(`/admin/customers/${customer.id}`)}
+                        className="flex-1 bg-purple-600 text-white px-3 py-2 rounded-lg text-sm font-semibold hover:bg-purple-700 transition-colors"
+                      >
+                        View
+                      </button>
+                      <button
+                        onClick={() => handleSendSMS(customer)}
+                        className="flex-1 bg-green-600 text-white px-3 py-2 rounded-lg text-sm font-semibold hover:bg-green-700 transition-colors"
+                      >
+                        SMS
+                      </button>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           )}

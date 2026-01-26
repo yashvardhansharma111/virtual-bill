@@ -60,12 +60,12 @@ export default function AdminDashboard() {
   return (
     <div className="flex min-h-screen bg-gray-50">
       <AdminSidebar />
-      <div className="flex-1 p-8">
+      <div className="flex-1 p-4 sm:p-6 lg:p-8 w-full lg:ml-0">
         <div className="max-w-7xl mx-auto">
-          <h1 className="text-3xl font-bold text-gray-800 mb-8">Dashboard</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-6 sm:mb-8">Dashboard</h1>
 
           {loading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
               {[1, 2].map((i) => (
                 <div key={i} className="bg-white rounded-xl shadow p-6 animate-pulse">
                   <div className="h-4 bg-gray-200 rounded w-1/2 mb-4"></div>
@@ -74,41 +74,41 @@ export default function AdminDashboard() {
               ))}
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-              <div className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-purple-600">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 mb-6 sm:mb-8">
+              <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6 border-l-4 border-purple-600">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-gray-600 text-sm font-medium">Total Products</p>
-                    <p className="text-4xl font-bold text-gray-800 mt-2">{stats.totalProducts}</p>
+                    <p className="text-gray-600 text-xs sm:text-sm font-medium">Total Products</p>
+                    <p className="text-2xl sm:text-4xl font-bold text-gray-800 mt-2">{stats.totalProducts}</p>
                   </div>
-                  <div className="text-5xl text-purple-200">📦</div>
+                  <div className="text-3xl sm:text-5xl text-purple-200">📦</div>
                 </div>
               </div>
 
-              <div className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-purple-600">
+              <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6 border-l-4 border-purple-600">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-gray-600 text-sm font-medium">Total Categories</p>
-                    <p className="text-4xl font-bold text-gray-800 mt-2">{stats.totalCategories}</p>
+                    <p className="text-gray-600 text-xs sm:text-sm font-medium">Total Categories</p>
+                    <p className="text-2xl sm:text-4xl font-bold text-gray-800 mt-2">{stats.totalCategories}</p>
                   </div>
-                  <div className="text-5xl text-purple-200">🏷️</div>
+                  <div className="text-3xl sm:text-5xl text-purple-200">🏷️</div>
                 </div>
               </div>
             </div>
           )}
 
-          <div className="bg-white rounded-xl shadow-lg p-6">
-            <h2 className="text-xl font-semibold text-gray-800 mb-4">Quick Actions</h2>
-            <div className="flex gap-4">
+          <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6">
+            <h2 className="text-lg sm:text-xl font-semibold text-gray-800 mb-4">Quick Actions</h2>
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
               <button
                 onClick={() => router.push('/admin/products')}
-                className="bg-purple-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-purple-700 transition-colors"
+                className="w-full sm:w-auto bg-purple-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-purple-700 transition-colors"
               >
                 Manage Products
               </button>
               <button
                 onClick={() => router.push('/')}
-                className="bg-gray-200 text-gray-700 px-6 py-3 rounded-lg font-semibold hover:bg-gray-300 transition-colors"
+                className="w-full sm:w-auto bg-gray-200 text-gray-700 px-6 py-3 rounded-lg font-semibold hover:bg-gray-300 transition-colors"
               >
                 View User Panel
               </button>
