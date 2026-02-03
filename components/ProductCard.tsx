@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import { formatCurrency } from '@/lib/utils';
 
@@ -19,7 +20,8 @@ interface ProductCardProps {
   onDelete?: (id: string) => void;
   onAddToCart?: (product: Product) => void;
   onUpdateQuantity?: (id: string, delta: number) => void;
-  cartQuantity?: number; // Current quantity in cart
+  onSetQuantity?: (id: string, quantity: number) => void;
+  cartQuantity?: number;
   isAdmin?: boolean;
 }
 
@@ -33,9 +35,35 @@ export default function ProductCard({
   onDelete,
   onAddToCart,
   onUpdateQuantity,
+  onSetQuantity,
   cartQuantity = 0,
   isAdmin = false,
 }: ProductCardProps) {
+  const [displayQty, setDisplayQty] = useState(String(cartQuantity));
+  const isFocused = useRef(false);
+
+  useEffect(() => {
+    if (!isFocused.current) setDisplayQty(String(cartQuantity));
+  }, [cartQuantity]);
+
+  const commitQuantity = (raw: string) => {
+    const v = raw.trim();
+    if (v === '') {
+      onSetQuantity?.(product._id, 1);
+      setDisplayQty('1');
+      return;
+    }
+    const n = parseInt(v, 10);
+    if (isNaN(n) || n < 1) {
+      onSetQuantity?.(product._id, 1);
+      setDisplayQty('1');
+      return;
+    }
+    const clamped = Math.min(n, product.stockQuantity);
+    onSetQuantity?.(product._id, clamped);
+    setDisplayQty(String(clamped));
+  };
+
   return (
     <div className="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow">
       <div className="relative h-48 bg-gray-100">
@@ -85,19 +113,40 @@ export default function ProductCard({
             </button>
           </div>
         ) : cartQuantity > 0 ? (
-          // Show quantity controls if item is in cart
-          <div className="flex items-center justify-center gap-3">
+          <div className="flex items-center justify-center gap-2">
             <button
               onClick={() => onUpdateQuantity?.(product._id, -1)}
-              className="w-10 h-10 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors flex items-center justify-center font-bold text-lg"
+              className="w-9 h-9 sm:w-10 sm:h-10 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors flex items-center justify-center font-bold text-lg"
+              aria-label="Decrease quantity"
             >
               −
             </button>
-            <span className="font-semibold text-lg w-8 text-center">{cartQuantity}</span>
+            <input
+              type="number"
+              min={1}
+              max={product.stockQuantity}
+              value={displayQty}
+              onChange={(e) => {
+                isFocused.current = true;
+                setDisplayQty(e.target.value);
+              }}
+              onFocus={() => { isFocused.current = true; }}
+              onBlur={(e) => {
+                isFocused.current = false;
+                commitQuantity(e.target.value);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  (e.target as HTMLInputElement).blur();
+                }
+              }}
+              className="w-12 sm:w-14 h-9 sm:h-10 text-center font-semibold border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+            />
             <button
               onClick={() => onUpdateQuantity?.(product._id, 1)}
               disabled={cartQuantity >= product.stockQuantity}
-              className="w-10 h-10 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors flex items-center justify-center font-bold text-lg disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-9 h-9 sm:w-10 sm:h-10 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors flex items-center justify-center font-bold text-lg disabled:opacity-50 disabled:cursor-not-allowed"
+              aria-label="Increase quantity"
             >
               +
             </button>

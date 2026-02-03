@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
-import User from '@/models/User';
 import Bill from '@/models/Bill';
 
 /**
  * GET /api/admin/customers/[id]
- * Get customer details with all bills and outstanding balance
+ * Get customer details by id (phone or legacy User _id) with all bills
  */
 export async function GET(
   request: NextRequest,
@@ -24,42 +23,39 @@ export async function GET(
 
     await connectDB();
 
-    const user = await User.findById(id).select('-password -otp -resetPasswordToken').lean();
+    const bills = await Bill.find({ customerPhone: id }).sort({ createdAt: -1 }).lean();
 
-    if (!user) {
+    if (!bills || bills.length === 0) {
       return NextResponse.json(
         { success: false, error: 'Customer not found' },
         { status: 404 }
       );
     }
 
-    // Get all bills for this customer
-    const bills = await Bill.find({ userId: id })
-      .sort({ createdAt: -1 })
-      .lean();
+    const first = bills[0];
+    const customer = {
+      id: first.customerPhone || id,
+      name: first.customerName || '',
+      email: '',
+      phone: first.customerPhone || id,
+      address: first.customerAddress || '',
+      isVerified: true,
+      createdAt: first.createdAt,
+    };
 
-    // Calculate totals
     const totalBills = bills.length;
-    const paidBills = bills.filter((b) => b.status === 'paid').length;
-    const pendingBills = bills.filter((b) => b.status === 'pending' || b.status === 'partial').length;
+    const paidBills = bills.filter((b: any) => b.status === 'paid').length;
+    const pendingBills = bills.filter((b: any) => b.status === 'pending' || b.status === 'partial').length;
     const totalOutstanding = bills
-      .filter((b) => b.status === 'pending' || b.status === 'partial')
-      .reduce((sum, bill) => sum + (bill.outstandingAmount || 0), 0);
-    const totalPaid = bills.reduce((sum, bill) => sum + (bill.paidAmount || 0), 0);
-    const totalAmount = bills.reduce((sum, bill) => sum + (bill.grandTotal || 0), 0);
+      .filter((b: any) => b.status === 'pending' || b.status === 'partial')
+      .reduce((sum: number, bill: any) => sum + (bill.outstandingAmount || 0), 0);
+    const totalPaid = bills.reduce((sum: number, bill: any) => sum + (bill.paidAmount || 0), 0);
+    const totalAmount = bills.reduce((sum: number, bill: any) => sum + (bill.grandTotal || 0), 0);
 
     return NextResponse.json(
       {
         success: true,
-        customer: {
-          id: user._id.toString(),
-          name: user.name,
-          email: user.email,
-          phone: user.phone,
-          address: user.address || '',
-          isVerified: user.isVerified,
-          createdAt: user.createdAt,
-        },
+        customer,
         bills: bills || [],
         summary: {
           totalBills,

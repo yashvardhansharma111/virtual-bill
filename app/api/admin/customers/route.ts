@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
-import User from '@/models/User';
 import Bill from '@/models/Bill';
 
 /**
  * GET /api/admin/customers
- * Get all customers with their outstanding balances
+ * Get all customers derived from Bills (so new order submissions appear here)
  */
 export async function GET(request: NextRequest) {
   try {
@@ -21,66 +20,79 @@ export async function GET(request: NextRequest) {
     await connectDB();
 
     const { searchParams } = new URL(request.url);
-    const search = searchParams.get('search') || '';
+    const search = (searchParams.get('search') || '').trim();
 
-    // Build query
-    let userQuery: any = {};
-    if (search) {
-      userQuery.$or = [
-        { name: { $regex: search, $options: 'i' } },
-        { email: { $regex: search, $options: 'i' } },
-        { phone: { $regex: search, $options: 'i' } },
-      ];
-    }
-
-    const users = await User.find(userQuery)
-      .select('-password -otp -resetPasswordToken')
+    // Aggregate customers from bills (group by customerPhone)
+    const bills = await Bill.find({})
       .sort({ createdAt: -1 })
       .lean();
 
-    // Calculate outstanding balance for each user
-    const customersWithBalance = await Promise.all(
-      users.map(async (user) => {
-        const bills = await Bill.find({
-          userId: user._id,
-          status: { $in: ['pending', 'partial'] },
-        }).lean();
+    const customerMap = new Map<
+      string,
+      {
+        id: string;
+        name: string;
+        email: string;
+        phone: string;
+        address: string;
+        totalBills: number;
+        paidBills: number;
+        pendingBills: number;
+        outstandingBalance: number;
+        createdAt: string;
+      }
+    >();
 
-        const totalOutstanding = bills.reduce(
-          (sum, bill) => sum + (bill.outstandingAmount || 0),
-          0
-        );
+    for (const bill of bills) {
+      const phone = (bill.customerPhone || '').trim();
+      if (!phone) continue;
 
-        const totalBills = await Bill.countDocuments({ userId: user._id });
-        const paidBills = await Bill.countDocuments({
-          userId: user._id,
-          status: 'paid',
+      const existing = customerMap.get(phone);
+      const isPaid = bill.status === 'paid';
+      const outstanding = bill.outstandingAmount ?? bill.grandTotal - (bill.paidAmount ?? 0);
+
+      if (!existing) {
+        customerMap.set(phone, {
+          id: phone,
+          name: bill.customerName || '',
+          email: '',
+          phone,
+          address: bill.customerAddress || '',
+          totalBills: 1,
+          paidBills: isPaid ? 1 : 0,
+          pendingBills: isPaid ? 0 : 1,
+          outstandingBalance: outstanding > 0 ? outstanding : 0,
+          createdAt: (bill.createdAt as Date)?.toISOString?.() || '',
         });
+      } else {
+        existing.totalBills += 1;
+        if (isPaid) existing.paidBills += 1;
+        else existing.pendingBills += 1;
+        existing.outstandingBalance += outstanding > 0 ? outstanding : 0;
+        if (bill.customerName) existing.name = bill.customerName;
+        if (bill.customerAddress) existing.address = bill.customerAddress;
+      }
+    }
 
-        return {
-          id: user._id.toString(),
-          name: user.name,
-          email: user.email,
-          phone: user.phone,
-          address: user.address || '',
-          isVerified: user.isVerified,
-          totalBills,
-          paidBills,
-          pendingBills: totalBills - paidBills,
-          outstandingBalance: totalOutstanding,
-          createdAt: user.createdAt,
-        };
-      })
-    );
+    let customers = Array.from(customerMap.values());
 
-    // Sort by outstanding balance (highest first)
-    customersWithBalance.sort((a, b) => b.outstandingBalance - a.outstandingBalance);
+    if (search) {
+      const q = search.toLowerCase();
+      customers = customers.filter(
+        (c) =>
+          c.name.toLowerCase().includes(q) ||
+          c.phone.includes(q) ||
+          (c.address && c.address.toLowerCase().includes(q))
+      );
+    }
+
+    customers.sort((a, b) => b.outstandingBalance - a.outstandingBalance);
 
     return NextResponse.json(
       {
         success: true,
-        data: customersWithBalance,
-        count: customersWithBalance.length,
+        data: customers,
+        count: customers.length,
       },
       { status: 200 }
     );

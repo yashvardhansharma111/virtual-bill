@@ -117,50 +117,50 @@ export default function AdminOrdersPage() {
             </div>
           ) : (
             <>
-              {/* Desktop Table */}
-              <div className="hidden lg:block overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Bill No.</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phone</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Items</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {orders.map((order) => (
-                    <tr key={order._id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{order.billNumber}</td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">{order.customerName}</div>
-                        {order.customerAddress && (
-                          <div className="text-sm text-gray-500">{order.customerAddress}</div>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{order.customerPhone}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{formatDate(new Date(order.createdAt))}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-purple-600">{formatCurrency(order.grandTotal)}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{order.items.length} items</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        <button
-                          onClick={() => handleGenerateBill(order)}
-                          className="bg-purple-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-purple-700 transition-colors"
-                        >
-                          Generate Bill
-                        </button>
-                      </td>
+              {/* Desktop/Tablet Table - scrollable so it doesn't overflow */}
+              <div className="hidden md:block w-full overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200 w-full" style={{ minWidth: '640px' }}>
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-3 py-2 lg:px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Bill No.</th>
+                      <th className="px-3 py-2 lg:px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider max-w-[140px] lg:max-w-[200px]">Customer</th>
+                      <th className="px-3 py-2 lg:px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phone</th>
+                      <th className="px-3 py-2 lg:px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Date</th>
+                      <th className="px-3 py-2 lg:px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
+                      <th className="px-3 py-2 lg:px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Items</th>
+                      <th className="px-3 py-2 lg:px-4 text-right text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap sticky right-0 bg-gray-50 shadow-[-4px_0_8px_-2px_rgba(0,0,0,0.05)]">Action</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {orders.map((order) => (
+                      <tr key={order._id} className="hover:bg-gray-50">
+                        <td className="px-3 py-3 lg:px-4 text-sm font-medium text-gray-900 whitespace-nowrap">{order.billNumber}</td>
+                        <td className="px-3 py-3 lg:px-4 text-sm max-w-[140px] lg:max-w-[200px]">
+                          <div className="font-medium text-gray-900 truncate" title={order.customerName}>{order.customerName}</div>
+                          {order.customerAddress && (
+                            <div className="text-gray-500 text-xs truncate" title={order.customerAddress}>{order.customerAddress}</div>
+                          )}
+                        </td>
+                        <td className="px-3 py-3 lg:px-4 text-sm text-gray-500 whitespace-nowrap">{order.customerPhone}</td>
+                        <td className="px-3 py-3 lg:px-4 text-sm text-gray-500 whitespace-nowrap">{formatDate(new Date(order.createdAt))}</td>
+                        <td className="px-3 py-3 lg:px-4 text-sm font-semibold text-purple-600 whitespace-nowrap">{formatCurrency(order.grandTotal)}</td>
+                        <td className="px-3 py-3 lg:px-4 text-sm text-gray-500 whitespace-nowrap">{order.items.length}</td>
+                        <td className="px-3 py-3 lg:px-4 text-sm text-right whitespace-nowrap sticky right-0 bg-white hover:bg-gray-50 transition-colors">
+                          <button
+                            onClick={() => handleGenerateBill(order)}
+                            className="bg-purple-600 text-white px-3 py-1.5 lg:px-4 lg:py-2 rounded-lg font-semibold hover:bg-purple-700 transition-colors text-sm whitespace-nowrap"
+                          >
+                            Generate Bill
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
               
               {/* Mobile Card View */}
-              <div className="lg:hidden divide-y divide-gray-200">
+              <div className="md:hidden divide-y divide-gray-200">
                 {orders.map((order) => (
                   <div key={order._id} className="p-4 space-y-3">
                     <div className="flex justify-between items-start">

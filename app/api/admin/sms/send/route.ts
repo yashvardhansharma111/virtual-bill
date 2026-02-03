@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { sendSMS, sendOutstandingBalanceSMS, sendCustomSMS } from '@/lib/sms';
+import { sendOutstandingBalanceSMS, sendCustomSMS } from '@/lib/sms';
 import connectDB from '@/lib/mongodb';
-import User from '@/models/User';
+import Bill from '@/models/Bill';
 
 /**
  * POST /api/admin/sms/send
- * Send SMS to customer
+ * Send SMS to customer (userId can be phone or legacy User _id)
  */
 export async function POST(request: NextRequest) {
   try {
@@ -20,7 +20,6 @@ export async function POST(request: NextRequest) {
 
     const { userId, phone, message, type, outstandingAmount } = await request.json();
 
-    // Validation
     if (!phone && !userId) {
       return NextResponse.json(
         { success: false, error: 'Phone number or user ID is required' },
@@ -28,21 +27,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    let targetPhone = phone;
+    let targetPhone = phone || userId;
     let customerName = 'Customer';
 
-    // If userId is provided, get user details
-    if (userId) {
+    if (userId && !phone) {
       await connectDB();
-      const user = await User.findById(userId).select('name phone').lean();
-      if (user) {
-        targetPhone = user.phone;
-        customerName = user.name || 'Customer';
-      } else {
-        return NextResponse.json(
-          { success: false, error: 'User not found' },
-          { status: 404 }
-        );
+      const bill = await Bill.findOne({ customerPhone: String(userId) }).sort({ createdAt: -1 }).select('customerName customerPhone').lean();
+      if (bill) {
+        targetPhone = bill.customerPhone;
+        customerName = bill.customerName || 'Customer';
       }
     }
 

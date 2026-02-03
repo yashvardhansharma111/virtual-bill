@@ -45,6 +45,7 @@ export default function Home() {
   });
   const [searchSuggestions, setSearchSuggestions] = useState<string[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [suggestionIndex, setSuggestionIndex] = useState(-1);
 
   useEffect(() => {
     // Debounce search to avoid too many API calls
@@ -61,36 +62,51 @@ export default function Home() {
       if (search.length < 2) {
         setSearchSuggestions([]);
         setShowSuggestions(false);
+        setSuggestionIndex(-1);
         return;
       }
 
       try {
         const response = await axios.get(`/api/products/suggestions?q=${encodeURIComponent(search)}`);
         if (response.data.success) {
-          setSearchSuggestions(response.data.data || []);
-          setShowSuggestions(response.data.data && response.data.data.length > 0);
+          const list = response.data.data || [];
+          setSearchSuggestions(list);
+          setShowSuggestions(list.length > 0);
+          setSuggestionIndex(-1);
         }
       } catch (error) {
-        // Silently fail for suggestions
         setSearchSuggestions([]);
         setShowSuggestions(false);
+        setSuggestionIndex(-1);
       }
     };
 
-    const timeoutId = setTimeout(() => {
-      fetchSuggestions();
-    }, 200); // Faster debounce for suggestions
-
+    const timeoutId = setTimeout(() => fetchSuggestions(), 200);
     return () => clearTimeout(timeoutId);
   }, [search]);
 
   const handleSuggestionClick = (suggestion: string) => {
     setSearch(suggestion);
     setShowSuggestions(false);
-    // Trigger product fetch with the selected suggestion
-    setTimeout(() => {
-      fetchProducts();
-    }, 100);
+    setSuggestionIndex(-1);
+    setTimeout(() => fetchProducts(), 100);
+  };
+
+  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!showSuggestions || searchSuggestions.length === 0) return;
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setSuggestionIndex((i) => (i < searchSuggestions.length - 1 ? i + 1 : 0));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setSuggestionIndex((i) => (i <= 0 ? searchSuggestions.length - 1 : i - 1));
+    } else if (e.key === 'Enter' && suggestionIndex >= 0 && searchSuggestions[suggestionIndex]) {
+      e.preventDefault();
+      handleSuggestionClick(searchSuggestions[suggestionIndex]);
+    } else if (e.key === 'Escape') {
+      setShowSuggestions(false);
+      setSuggestionIndex(-1);
+    }
   };
 
   const fetchProducts = async () => {
@@ -154,10 +170,7 @@ export default function Home() {
         .map((item) => {
           if (item._id === id) {
             const newQuantity = item.quantity + delta;
-            if (newQuantity <= 0) {
-              // Remove from cart if quantity becomes 0
-              return null;
-            }
+            if (newQuantity <= 0) return null;
             if (newQuantity > item.stockQuantity) {
               toast.error('Maximum stock available reached');
               return item;
@@ -167,6 +180,22 @@ export default function Home() {
           return item;
         })
         .filter((item): item is CartItem => item !== null);
+    });
+  };
+
+  const setQuantity = (id: string, quantity: number) => {
+    const num = Math.floor(Number(quantity)) || 0;
+    if (num <= 0) {
+      removeFromCart(id);
+      return;
+    }
+    setCart((prevCart) => {
+      return prevCart.map((item) => {
+        if (item._id !== id) return item;
+        const clamped = Math.min(Math.max(num, 1), item.stockQuantity);
+        if (clamped > item.stockQuantity) toast.error('Maximum stock available reached');
+        return { ...item, quantity: clamped };
+      });
     });
   };
 
@@ -236,16 +265,13 @@ export default function Home() {
               onChange={(e) => {
                 setSearch(e.target.value);
                 setShowSuggestions(true);
+                setSuggestionIndex(-1);
               }}
               onFocus={() => {
-                if (searchSuggestions.length > 0) {
-                  setShowSuggestions(true);
-                }
+                if (searchSuggestions.length > 0) setShowSuggestions(true);
               }}
-              onBlur={() => {
-                // Delay hiding to allow clicking on suggestions
-                setTimeout(() => setShowSuggestions(false), 200);
-              }}
+              onKeyDown={handleSearchKeyDown}
+              onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
               className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none text-lg"
             />
             {/* Search Suggestions Dropdown */}
@@ -256,7 +282,7 @@ export default function Home() {
                     key={index}
                     type="button"
                     onClick={() => handleSuggestionClick(suggestion)}
-                    className="w-full text-left px-4 py-2 hover:bg-purple-50 focus:bg-purple-50 focus:outline-none transition-colors"
+                    className={`w-full text-left px-4 py-2 focus:outline-none transition-colors ${suggestionIndex === index ? 'bg-purple-100 text-purple-800' : 'hover:bg-purple-50'}`}
                   >
                     <div className="flex items-center gap-2">
                       <svg className="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -330,6 +356,7 @@ export default function Home() {
                   product={product}
                   onAddToCart={addToCart}
                   onUpdateQuantity={updateQuantity}
+                  onSetQuantity={setQuantity}
                   cartQuantity={cartItem?.quantity || 0}
                 />
               );
@@ -345,6 +372,7 @@ export default function Home() {
           submitting={submitting}
           onClose={() => setShowCart(false)}
           onUpdateQuantity={updateQuantity}
+          onSetQuantity={setQuantity}
           onRemove={removeFromCart}
           onSubmitOrder={async () => {
             if (cart.length === 0) {
@@ -480,7 +508,7 @@ export default function Home() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <label htmlFor="customerCity" className="block text-sm font-medium text-gray-700 mb-2">
-                    City <span className="text-red-500">*</span>
+                    City <span className="text-gray-400">(Optional)</span>
                   </label>
                   <input
                     id="customerCity"
@@ -489,12 +517,11 @@ export default function Home() {
                     onChange={(e) => setCustomerDetails({ ...customerDetails, city: e.target.value })}
                     placeholder="Enter city"
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition"
-                    required
                   />
                 </div>
                 <div>
                   <label htmlFor="customerState" className="block text-sm font-medium text-gray-700 mb-2">
-                    State <span className="text-red-500">*</span>
+                    State <span className="text-gray-400">(Optional)</span>
                   </label>
                   <input
                     id="customerState"
@@ -503,12 +530,11 @@ export default function Home() {
                     onChange={(e) => setCustomerDetails({ ...customerDetails, state: e.target.value })}
                     placeholder="Enter state"
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition"
-                    required
                   />
                 </div>
                 <div>
                   <label htmlFor="customerPincode" className="block text-sm font-medium text-gray-700 mb-2">
-                    Pincode <span className="text-red-500">*</span>
+                    Pincode <span className="text-gray-400">(Optional)</span>
                   </label>
                   <input
                     id="customerPincode"
@@ -517,7 +543,6 @@ export default function Home() {
                     onChange={(e) => setCustomerDetails({ ...customerDetails, pincode: e.target.value })}
                     placeholder="Enter pincode"
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition"
-                    required
                   />
                 </div>
               </div>

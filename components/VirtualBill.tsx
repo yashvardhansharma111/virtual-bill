@@ -83,6 +83,7 @@ export default function VirtualBill({
   const [paidAmount, setPaidAmount] = useState(bill?.paidAmount || 0);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [lookupLoading, setLookupLoading] = useState(false);
 
   // Update state when bill prop changes
   useEffect(() => {
@@ -103,6 +104,30 @@ export default function VirtualBill({
       setCustomerAddress(initialCustomerAddress);
     }
   }, [initialCustomerName, initialCustomerPhone, initialCustomerAddress, bill]);
+
+  const lookupCustomerByPhone = async () => {
+    const phone = (customerPhone || '').trim();
+    if (!phone || phone.length < 10) {
+      toast.error('Enter a valid phone number to look up');
+      return;
+    }
+    setLookupLoading(true);
+    try {
+      const res = await axios.get(`/api/admin/customers/lookup?phone=${encodeURIComponent(phone)}`);
+      if (res.data.success && res.data.data) {
+        setCustomerName(res.data.data.customerName || '');
+        setCustomerAddress(res.data.data.customerAddress || '');
+        if (res.data.data.customerPhone) setCustomerPhone(res.data.data.customerPhone);
+        toast.success('Customer details filled from previous orders');
+      } else {
+        toast.info('No previous orders found for this number');
+      }
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Lookup failed');
+    } finally {
+      setLookupLoading(false);
+    }
+  };
 
   // Shop details (can be customized)
   const shopName = 'शिव ट्रेडर्स';
@@ -305,10 +330,29 @@ export default function VirtualBill({
 
           {/* Customer Details */}
           <div className="mb-4 space-y-2">
+            {isAdmin && (
+              <div className="flex flex-wrap items-center gap-2 mb-2 print:hidden">
+                <button
+                  type="button"
+                  onClick={lookupCustomerByPhone}
+                  disabled={lookupLoading || !customerPhone.trim()}
+                  className="text-sm bg-gray-200 text-gray-800 px-3 py-1.5 rounded-lg font-medium hover:bg-gray-300 disabled:opacity-50"
+                >
+                  {lookupLoading ? 'Looking up...' : 'Look up by phone'}
+                </button>
+                <span className="text-xs text-gray-500">Recognise customer and auto-fill name & address</span>
+              </div>
+            )}
             <div>
               <span className="font-semibold text-gray-800">श्रीमान: </span>
               {isAdmin ? (
-                <span className="text-gray-700">{customerName}</span>
+                <input
+                  type="text"
+                  value={customerName}
+                  onChange={(e) => setCustomerName(e.target.value)}
+                  placeholder="ग्राहक का नाम"
+                  className="border-b border-gray-300 px-2 py-1 outline-none focus:border-purple-600 print:border-none print:px-0 w-full max-w-xs"
+                />
               ) : (
                 <input
                   type="text"
@@ -322,32 +366,24 @@ export default function VirtualBill({
             </div>
             <div>
               <span className="font-semibold text-gray-800">फोन: </span>
-              {isAdmin ? (
-                <span className="text-gray-700">{customerPhone}</span>
-              ) : (
-                <input
-                  type="text"
-                  value={customerPhone}
-                  onChange={(e) => setCustomerPhone(e.target.value)}
-                  placeholder="फोन नंबर"
-                  className="border-b border-gray-300 px-2 py-1 outline-none focus:border-purple-600 print:border-none print:px-0"
-                  required
-                />
-              )}
+              <input
+                type="text"
+                value={customerPhone}
+                onChange={(e) => setCustomerPhone(e.target.value)}
+                placeholder="फोन नंबर"
+                className="border-b border-gray-300 px-2 py-1 outline-none focus:border-purple-600 print:border-none print:px-0"
+                required
+              />
             </div>
             <div>
               <span className="font-semibold text-gray-800">ग्राम/पता: </span>
-              {isAdmin ? (
-                <span className="text-gray-700">{customerAddress || 'N/A'}</span>
-              ) : (
-                <input
-                  type="text"
-                  value={customerAddress}
-                  onChange={(e) => setCustomerAddress(e.target.value)}
-                  placeholder="ग्राम/शहर/पता"
-                  className="border-b border-gray-300 px-2 py-1 outline-none focus:border-purple-600 print:border-none print:px-0"
-                />
-              )}
+              <input
+                type="text"
+                value={customerAddress}
+                onChange={(e) => setCustomerAddress(e.target.value)}
+                placeholder="ग्राम/शहर/पता"
+                className="border-b border-gray-300 px-2 py-1 outline-none focus:border-purple-600 print:border-none print:px-0 w-full max-w-md"
+              />
             </div>
           </div>
 

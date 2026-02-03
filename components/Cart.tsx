@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect, useRef } from 'react';
 import { formatCurrency } from '@/lib/utils';
 
 interface Product {
@@ -20,6 +21,7 @@ interface CartProps {
   cart: CartItem[];
   onClose: () => void;
   onUpdateQuantity: (id: string, delta: number) => void;
+  onSetQuantity?: (id: string, quantity: number) => void;
   onRemove: (id: string) => void;
   onSubmitOrder: () => void;
   submitting?: boolean;
@@ -33,10 +35,45 @@ export default function Cart({
   cart,
   onClose,
   onUpdateQuantity,
+  onSetQuantity,
   onRemove,
   onSubmitOrder,
   submitting = false,
 }: CartProps) {
+  const [displayQtys, setDisplayQtys] = useState<Record<string, string>>({});
+  const focusedId = useRef<string | null>(null);
+
+  useEffect(() => {
+    setDisplayQtys((prev) => {
+      const next: Record<string, string> = {};
+      cart.forEach((item) => {
+        next[item._id] = focusedId.current === item._id
+          ? (prev[item._id] ?? String(item.quantity))
+          : String(item.quantity);
+      });
+      return next;
+    });
+  }, [cart]);
+
+  const commitQuantity = (id: string, raw: string, max: number) => {
+    focusedId.current = null;
+    const v = raw.trim();
+    if (v === '') {
+      onSetQuantity?.(id, 1);
+      setDisplayQtys((p) => ({ ...p, [id]: '1' }));
+      return;
+    }
+    const n = parseInt(v, 10);
+    if (isNaN(n) || n < 1) {
+      onSetQuantity?.(id, 1);
+      setDisplayQtys((p) => ({ ...p, [id]: '1' }));
+      return;
+    }
+    const clamped = Math.min(n, max);
+    onSetQuantity?.(id, clamped);
+    setDisplayQtys((p) => ({ ...p, [id]: String(clamped) }));
+  };
+
   const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
   return (
@@ -84,17 +121,35 @@ export default function Cart({
                       <p className="text-purple-600 font-bold mb-2">
                         {formatCurrency(item.price)}
                       </p>
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <button
                           onClick={() => onUpdateQuantity(item._id, -1)}
-                          className="w-8 h-8 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors flex items-center justify-center"
+                          className="w-8 h-8 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors flex items-center justify-center shrink-0"
+                          aria-label="Decrease"
                         >
                           −
                         </button>
-                        <span className="font-semibold w-8 text-center">{item.quantity}</span>
+                        <input
+                          type="number"
+                          min={1}
+                          max={item.stockQuantity}
+                          value={displayQtys[item._id] ?? item.quantity}
+                          onChange={(e) => {
+                            focusedId.current = item._id;
+                            setDisplayQtys((p) => ({ ...p, [item._id]: e.target.value }));
+                          }}
+                          onFocus={() => { focusedId.current = item._id; }}
+                          onBlur={(e) => commitQuantity(item._id, e.target.value, item.stockQuantity)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+                          }}
+                          className="w-12 h-8 text-center font-semibold border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                        />
                         <button
                           onClick={() => onUpdateQuantity(item._id, 1)}
-                          className="w-8 h-8 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors flex items-center justify-center"
+                          disabled={item.quantity >= item.stockQuantity}
+                          className="w-8 h-8 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors flex items-center justify-center shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
+                          aria-label="Increase"
                         >
                           +
                         </button>
