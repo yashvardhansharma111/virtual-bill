@@ -15,6 +15,7 @@ export interface IBill extends Document {
     total: number;
   }>;
   subtotal: number;
+  discountAmount: number;
   grandTotal: number;
   paidAmount: number;
   outstandingAmount: number;
@@ -94,6 +95,11 @@ const BillSchema: Schema = new Schema(
     subtotal: {
       type: Number,
       required: true,
+      min: 0,
+    },
+    discountAmount: {
+      type: Number,
+      default: 0,
       min: 0,
     },
     grandTotal: {

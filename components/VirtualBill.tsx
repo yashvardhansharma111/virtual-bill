@@ -37,6 +37,7 @@ interface Bill {
   customerAddress: string;
   items: BillItem[];
   subtotal: number;
+  discountAmount?: number;
   grandTotal: number;
   paidAmount: number;
   outstandingAmount: number;
@@ -81,6 +82,7 @@ export default function VirtualBill({
   const [customerPhone, setCustomerPhone] = useState(bill?.customerPhone || initialCustomerPhone);
   const [customerAddress, setCustomerAddress] = useState(bill?.customerAddress || initialCustomerAddress);
   const [paidAmount, setPaidAmount] = useState(bill?.paidAmount || 0);
+  const [discountAmount, setDiscountAmount] = useState(bill?.discountAmount ?? 0);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [lookupLoading, setLookupLoading] = useState(false);
@@ -93,6 +95,7 @@ export default function VirtualBill({
       setCustomerPhone(bill.customerPhone);
       setCustomerAddress(bill.customerAddress);
       setPaidAmount(bill.paidAmount);
+      setDiscountAmount(bill.discountAmount ?? 0);
     }
   }, [bill]);
 
@@ -148,8 +151,10 @@ export default function VirtualBill({
     total: item.price * item.quantity,
   })) || []);
   
-  const subtotal = bill?.subtotal || (cart?.reduce((sum, item) => sum + item.price * item.quantity, 0) || 0);
-  const grandTotal = bill?.grandTotal || subtotal;
+  const subtotal = bill?.subtotal ?? (cart?.reduce((sum, item) => sum + item.price * item.quantity, 0) || 0);
+  const maxDiscount = Math.max(0, subtotal);
+  const effectiveDiscount = Math.min(discountAmount, maxDiscount);
+  const grandTotal = Math.max(0, subtotal - effectiveDiscount);
   const outstandingAmount = grandTotal - paidAmount;
   const status = outstandingAmount === 0 ? 'paid' : paidAmount > 0 ? 'partial' : 'pending';
 
@@ -172,9 +177,13 @@ export default function VirtualBill({
     }
 
     if (isAdmin && bill) {
-      // Admin mode: Update existing bill with payment
+      // Admin mode: Update existing bill with payment and discount
       if (paidAmount < 0 || paidAmount > grandTotal) {
         toast.error('Paid amount must be between 0 and total amount');
+        return;
+      }
+      if (effectiveDiscount < 0 || effectiveDiscount > subtotal) {
+        toast.error('Discount must be between 0 and subtotal');
         return;
       }
 
@@ -182,6 +191,7 @@ export default function VirtualBill({
       try {
         const response = await axios.put(`/api/bills/${bill._id}`, {
           paidAmount: Number(paidAmount),
+          discountAmount: Number(effectiveDiscount),
         });
 
         if (response.data.success) {
@@ -419,9 +429,9 @@ export default function VirtualBill({
               </tbody>
               <tfoot>
                 <tr className="bg-gray-100">
-                  <td colSpan={4} className="border border-gray-800 px-2 py-2 text-center font-bold">टोटल</td>
+                  <td colSpan={4} className="border border-gray-800 px-2 py-2 text-center font-bold">टोटल (Subtotal)</td>
                   <td className="border border-gray-800 px-2 py-2 text-center font-bold text-lg">
-                    {formatCurrency(grandTotal)}
+                    {formatCurrency(subtotal)}
                   </td>
                 </tr>
               </tfoot>
@@ -434,8 +444,8 @@ export default function VirtualBill({
               <h3 className="font-bold text-gray-800 mb-3">भुगतान विवरण (Payment Details)</h3>
               <div className="space-y-3">
                 <div className="flex justify-between items-center">
-                  <span className="font-semibold text-gray-800">कुल राशि (Total Amount):</span>
-                  <span className="text-lg font-bold text-gray-900">{formatCurrency(grandTotal)}</span>
+                  <span className="font-semibold text-gray-800">कुल योग (Subtotal):</span>
+                  <span className="text-lg font-bold text-gray-900">{formatCurrency(subtotal)}</span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="font-semibold text-gray-800">भुगतान राशि (Paid Amount):</span>
@@ -458,6 +468,33 @@ export default function VirtualBill({
                       <span className="text-lg font-bold text-green-600">{formatCurrency(paidAmount)}</span>
                     )}
                   </div>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="font-semibold text-gray-800">छूट राशि (Discount – Amount in ₹):</span>
+                  <div className="flex items-center gap-2">
+                    {!saved && (
+                      <input
+                        type="number"
+                        value={discountAmount}
+                        onChange={(e) => {
+                          const value = Math.max(0, Math.min(subtotal, Number(e.target.value) || 0));
+                          setDiscountAmount(value);
+                        }}
+                        min="0"
+                        max={subtotal}
+                        step="1"
+                        placeholder="0"
+                        className="w-32 border border-gray-300 px-3 py-2 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none text-right font-semibold"
+                      />
+                    )}
+                    {saved && (
+                      <span className="text-lg font-bold text-gray-700">{formatCurrency(effectiveDiscount)}</span>
+                    )}
+                  </div>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="font-semibold text-gray-800">कुल देय (Grand Total):</span>
+                  <span className="text-lg font-bold text-gray-900">{formatCurrency(grandTotal)}</span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="font-semibold text-gray-800">शेष राशि (Outstanding):</span>

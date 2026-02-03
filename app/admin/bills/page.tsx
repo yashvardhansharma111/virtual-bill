@@ -42,6 +42,7 @@ export default function AdminBillsPage() {
   const [statusFilter, setStatusFilter] = useState('');
   const [selectedBill, setSelectedBill] = useState<Bill | null>(null);
   const [showBill, setShowBill] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
     checkAuth();
@@ -91,15 +92,33 @@ export default function AdminBillsPage() {
     fetchBills();
   };
 
+  const handleDeleteBill = async (bill: Bill) => {
+    if (!confirm(`Delete bill ${bill.billNumber} for ${bill.customerName}? This cannot be undone.`)) return;
+    setDeletingId(bill._id);
+    try {
+      const response = await axios.delete(`/api/bills/${bill._id}`);
+      if (response.data.success) {
+        toast.success('Bill deleted successfully');
+        fetchBills();
+      } else {
+        toast.error(response.data.error || 'Failed to delete bill');
+      }
+    } catch (error: any) {
+      toast.error(error.response?.data?.error || 'Failed to delete bill');
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
   const totalBills = bills.length;
   const totalAmount = bills.reduce((sum, bill) => sum + bill.grandTotal, 0);
   const totalOutstanding = bills.reduce((sum, bill) => sum + bill.outstandingAmount, 0);
   const totalPaid = bills.reduce((sum, bill) => sum + bill.paidAmount, 0);
 
   return (
-    <div className="flex min-h-screen bg-gray-100">
+    <div className="flex min-h-screen bg-gray-100 overflow-hidden">
       <AdminSidebar />
-      <main className="flex-1 p-4 sm:p-6 lg:p-8 w-full lg:ml-0">
+      <main className="flex-1 min-w-0 p-4 sm:p-6 lg:p-8 w-full lg:ml-0 overflow-auto">
         <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-4 sm:mb-6">All Bills</h1>
 
         {/* Stats Cards */}
@@ -142,8 +161,8 @@ export default function AdminBillsPage() {
         </div>
 
         {/* Filters */}
-        <div className="bg-white rounded-xl shadow-lg p-6 mb-8">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6 mb-6 sm:mb-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
@@ -166,75 +185,95 @@ export default function AdminBillsPage() {
           </div>
         </div>
 
-        {/* Bills Table */}
-        <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+        {/* Bills Table - fits within viewport, horizontal scroll only if needed */}
+        <div className="bg-white rounded-xl shadow-lg overflow-hidden max-w-full">
           {loading ? (
             <div className="p-4 sm:p-6 text-center text-gray-600">Loading bills...</div>
           ) : bills.length === 0 ? (
             <div className="p-4 sm:p-6 text-center text-gray-600">No bills found.</div>
           ) : (
             <>
-              {/* Desktop Table */}
-              <div className="hidden lg:block overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Bill No.</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phone</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Paid</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Outstanding</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {bills.map((bill) => (
-                    <tr key={bill._id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{bill.billNumber}</td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">{bill.customerName}</div>
-                        {bill.customerAddress && (
-                          <div className="text-sm text-gray-500">{bill.customerAddress}</div>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{bill.customerPhone}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{formatDate(new Date(bill.createdAt))}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{formatCurrency(bill.grandTotal)}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{formatCurrency(bill.paidAmount)}</td>
-                      <td className={`px-6 py-4 whitespace-nowrap text-sm font-semibold ${bill.outstandingAmount > 0 ? 'text-red-600' : 'text-green-600'}`}>
-                        {formatCurrency(bill.outstandingAmount)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                          bill.status === 'paid' ? 'bg-green-100 text-green-800' :
-                          bill.status === 'partial' ? 'bg-yellow-100 text-yellow-800' :
-                          'bg-red-100 text-red-800'
-                        }`}>
-                          {bill.status.charAt(0).toUpperCase() + bill.status.slice(1)}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        <button
-                          onClick={() => {
-                            setSelectedBill(bill);
-                            setShowBill(true);
-                          }}
-                          className="bg-purple-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-purple-700 transition-colors"
-                        >
-                          View/Edit Bill
-                        </button>
-                      </td>
+              {/* Desktop/Tablet Table - fixed layout so it fits on screen */}
+              <div className="hidden md:block max-w-full overflow-x-auto">
+                <table className="w-full table-fixed divide-y divide-gray-200">
+                  <colgroup>
+                    <col className="w-[11%]" />
+                    <col className="w-[18%]" />
+                    <col className="w-[10%]" />
+                    <col className="w-[11%]" />
+                    <col className="w-[9%]" />
+                    <col className="w-[9%]" />
+                    <col className="w-[10%]" />
+                    <col className="w-[8%]" />
+                    <col className="w-[14%]" />
+                  </colgroup>
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Bill No.</th>
+                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer</th>
+                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phone</th>
+                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
+                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Paid</th>
+                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Out.</th>
+                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                      <th className="px-2 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider sticky right-0 bg-gray-50 shadow-[-4px_0_8px_-2px_rgba(0,0,0,0.05)] z-10">Action</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {bills.map((bill) => (
+                      <tr key={bill._id} className="hover:bg-gray-50">
+                        <td className="px-2 py-2 text-sm font-medium text-gray-900 truncate" title={bill.billNumber}>{bill.billNumber}</td>
+                        <td className="px-2 py-2 text-sm truncate" title={`${bill.customerName}${bill.customerAddress ? ' – ' + bill.customerAddress : ''}`}>
+                          <div className="font-medium text-gray-900 truncate">{bill.customerName}</div>
+                          {bill.customerAddress && (
+                            <div className="text-gray-500 text-xs truncate">{bill.customerAddress}</div>
+                          )}
+                        </td>
+                        <td className="px-2 py-2 text-sm text-gray-500 truncate" title={bill.customerPhone}>{bill.customerPhone}</td>
+                        <td className="px-2 py-2 text-sm text-gray-500 truncate" title={formatDate(new Date(bill.createdAt))}>{formatDate(new Date(bill.createdAt))}</td>
+                        <td className="px-2 py-2 text-sm text-gray-500 truncate">{formatCurrency(bill.grandTotal)}</td>
+                        <td className="px-2 py-2 text-sm text-gray-500 truncate">{formatCurrency(bill.paidAmount)}</td>
+                        <td className={`px-2 py-2 text-sm font-semibold truncate ${bill.outstandingAmount > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                          {formatCurrency(bill.outstandingAmount)}
+                        </td>
+                        <td className="px-2 py-2 truncate">
+                          <span className={`px-1.5 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                            bill.status === 'paid' ? 'bg-green-100 text-green-800' :
+                            bill.status === 'partial' ? 'bg-yellow-100 text-yellow-800' :
+                            'bg-red-100 text-red-800'
+                          }`}>
+                            {bill.status.charAt(0).toUpperCase() + bill.status.slice(1)}
+                          </span>
+                        </td>
+                        <td className="px-2 py-2 text-sm text-right sticky right-0 bg-white hover:bg-gray-50 transition-colors z-10">
+                          <div className="flex items-center justify-end gap-1 flex-shrink-0">
+                            <button
+                              onClick={() => {
+                                setSelectedBill(bill);
+                                setShowBill(true);
+                              }}
+                              className="bg-purple-600 text-white px-2 py-1.5 rounded-lg font-semibold hover:bg-purple-700 transition-colors text-xs"
+                            >
+                              View
+                            </button>
+                            <button
+                              onClick={() => handleDeleteBill(bill)}
+                              disabled={deletingId === bill._id}
+                              className="bg-red-500 text-white px-2 py-1.5 rounded-lg font-semibold hover:bg-red-600 transition-colors text-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              {deletingId === bill._id ? '...' : 'Del'}
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-              
+
               {/* Mobile Card View */}
-              <div className="lg:hidden divide-y divide-gray-200">
+              <div className="md:hidden divide-y divide-gray-200">
                 {bills.map((bill) => (
                   <div key={bill._id} className="p-4 space-y-3">
                     <div className="flex justify-between items-start">
@@ -277,15 +316,24 @@ export default function AdminBillsPage() {
                         </p>
                       </div>
                     </div>
-                    <button
-                      onClick={() => {
-                        setSelectedBill(bill);
-                        setShowBill(true);
-                      }}
-                      className="w-full bg-purple-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-purple-700 transition-colors text-sm"
-                    >
-                      View/Edit Bill
-                    </button>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => {
+                          setSelectedBill(bill);
+                          setShowBill(true);
+                        }}
+                        className="flex-1 bg-purple-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-purple-700 transition-colors text-sm"
+                      >
+                        View/Edit Bill
+                      </button>
+                      <button
+                        onClick={() => handleDeleteBill(bill)}
+                        disabled={deletingId === bill._id}
+                        className="bg-red-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-red-600 transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {deletingId === bill._id ? '...' : 'Delete'}
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
