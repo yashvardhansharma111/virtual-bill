@@ -74,10 +74,6 @@ export default function ProductForm({ product, onClose }: ProductFormProps) {
 
       if (image) {
         formDataToSend.append('image', image);
-      } else if (!product && !image) {
-        toast.error('Please select an image');
-        setLoading(false);
-        return;
       }
 
       if (product?._id) {
@@ -186,14 +182,13 @@ export default function ProductForm({ product, onClose }: ProductFormProps) {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Image {!product && '*'}
+                Image (optional)
               </label>
               <input
                 type="file"
                 accept="image/*"
                 onChange={handleImageChange}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none"
-                required={!product}
               />
               {preview && (
                 <img

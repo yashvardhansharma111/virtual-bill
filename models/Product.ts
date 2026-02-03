@@ -9,7 +9,7 @@ export interface IProduct extends Document {
   price: number;
   brand: string;
   stockQuantity: number;
-  image: string;
+  image?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -46,7 +46,8 @@ const ProductSchema: Schema = new Schema(
     },
     image: {
       type: String,
-      required: [true, 'Product image is required'],
+      default: '',
+      trim: true,
     },
   },
   {

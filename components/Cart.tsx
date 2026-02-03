@@ -108,12 +108,16 @@ export default function Cart({
                     key={item._id}
                     className="bg-gray-50 rounded-lg p-4 flex gap-4"
                   >
-                    <div className="w-20 h-20 bg-gray-200 rounded-lg overflow-hidden flex-shrink-0">
-                      <img
-                        src={item.image}
-                        alt={item.name}
-                        className="w-full h-full object-cover"
-                      />
+                    <div className="w-20 h-20 bg-gray-200 rounded-lg overflow-hidden flex-shrink-0 flex items-center justify-center">
+                      {item.image ? (
+                        <img
+                          src={item.image}
+                          alt={item.name}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <span className="text-xs text-gray-400">No image</span>
+                      )}
                     </div>
                     <div className="flex-1">
                       <h3 className="font-semibold text-gray-800 mb-1">{item.name}</h3>

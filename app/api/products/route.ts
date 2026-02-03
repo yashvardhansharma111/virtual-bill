@@ -159,25 +159,26 @@ export async function POST(request: NextRequest) {
     const price = parseFloat(formData.get('price') as string);
     const brand = formData.get('brand') as string;
     const stockQuantity = parseInt(formData.get('stockQuantity') as string);
-    const imageFile = formData.get('image') as File;
+    const imageFile = formData.get('image') as File | null;
 
-    // Validate required fields
-    if (!name || !type || !price || !brand || !stockQuantity || !imageFile) {
+    // Validate required fields (image is optional)
+    if (!name || !type || !price || !brand || !stockQuantity) {
       return NextResponse.json(
         {
           success: false,
-          error: 'All fields are required',
+          error: 'Name, type, price, brand and stock quantity are required',
         },
         { status: 400 }
       );
     }
 
-    // Upload image to Cloudinary
-    const imageBuffer = await imageFile.arrayBuffer();
-    const imageBase64 = Buffer.from(imageBuffer).toString('base64');
-    const imageDataUri = `data:${imageFile.type};base64,${imageBase64}`;
-
-    const imageUrl = await uploadImage(imageDataUri);
+    let imageUrl = '';
+    if (imageFile && imageFile.size > 0) {
+      const imageBuffer = await imageFile.arrayBuffer();
+      const imageBase64 = Buffer.from(imageBuffer).toString('base64');
+      const imageDataUri = `data:${imageFile.type};base64,${imageBase64}`;
+      imageUrl = await uploadImage(imageDataUri);
+    }
 
     // Create product
     const product = await Product.create({

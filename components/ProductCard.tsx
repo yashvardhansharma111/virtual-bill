@@ -11,7 +11,7 @@ interface Product {
   price: number;
   brand: string;
   stockQuantity: number;
-  image: string;
+  image?: string;
 }
 
 interface ProductCardProps {
@@ -67,13 +67,19 @@ export default function ProductCard({
   return (
     <div className="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow">
       <div className="relative h-48 bg-gray-100">
-        <Image
-          src={product.image}
-          alt={product.name}
-          fill
-          className="object-cover"
-          unoptimized
-        />
+        {product.image ? (
+          <Image
+            src={product.image}
+            alt={product.name}
+            fill
+            className="object-cover"
+            unoptimized
+          />
+        ) : (
+          <div className="absolute inset-0 flex items-center justify-center text-gray-400">
+            <span className="text-4xl font-light text-gray-300">No image</span>
+          </div>
+        )}
         {product.stockQuantity === 0 && (
           <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
             <span className="bg-red-500 text-white px-4 py-2 rounded-lg font-semibold">

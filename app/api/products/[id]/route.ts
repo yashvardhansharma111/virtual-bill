@@ -98,14 +98,12 @@ export async function PUT(
 
     // Upload new image if provided
     if (imageFile && imageFile.size > 0) {
-      // Delete old image
-      await deleteImage(product.image);
-
-      // Upload new image
+      if (product.image) {
+        await deleteImage(product.image);
+      }
       const imageBuffer = await imageFile.arrayBuffer();
       const imageBase64 = Buffer.from(imageBuffer).toString('base64');
       const imageDataUri = `data:${imageFile.type};base64,${imageBase64}`;
-
       product.image = await uploadImage(imageDataUri);
     }
 
@@ -154,8 +152,9 @@ export async function DELETE(
       );
     }
 
-    // Delete image from Cloudinary
-    await deleteImage(product.image);
+    if (product.image) {
+      await deleteImage(product.image);
+    }
 
     // Delete product
     await Product.findByIdAndDelete(id);
