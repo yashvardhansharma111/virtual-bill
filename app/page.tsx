@@ -214,9 +214,13 @@ export default function Home() {
       <header className="bg-white shadow-md sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex justify-between items-center">
-            <div>
-              <h1 className="text-2xl font-bold text-purple-600">Virtual Bill</h1>
-              <p className="text-sm text-gray-600">Electrical Shop</p>
+            <div className="flex items-center">
+              {/* Logo - place your logo file in public/logo.png */}
+              <img src="/logo.png" alt="Shiv Traders" className="h-10 w-auto mr-3" />
+              <div>
+                <h1 className="text-2xl font-bold text-purple-600">Virtual Bill</h1>
+                <p className="text-sm text-gray-600">Electrical Shop</p>
+              </div>
             </div>
             <div className="flex items-center gap-2 sm:gap-4">
               <button

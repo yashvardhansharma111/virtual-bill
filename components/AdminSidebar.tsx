@@ -70,9 +70,12 @@ export default function AdminSidebar() {
           isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         }`}
       >
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold mb-2">Virtual Bill</h1>
-          <p className="text-purple-200 text-sm">Admin Panel</p>
+        <div className="mb-8 flex items-center">
+          <img src="/logo.png" alt="Shiv Traders" className="h-10 w-auto mr-3" />
+          <div>
+            <h1 className="text-2xl font-bold mb-2">Virtual Bill</h1>
+            <p className="text-purple-200 text-sm">Admin Panel</p>
+          </div>
         </div>
 
         <nav className="flex-1">

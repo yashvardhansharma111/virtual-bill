@@ -318,6 +318,8 @@ export default function VirtualBill({
         <div ref={billRef} id="bill-content" className="p-4 sm:p-6 lg:p-8 print:p-4 bg-white">
           {/* Shop Header */}
           <div className="text-center mb-6 border-b-2 border-blue-600 pb-4">
+            {/* Logo at top of bill */}
+            <img src="/logo.png" alt={shopName} className="mx-auto h-16 w-auto mb-2" />
             <h1 className="text-4xl font-bold text-red-600 mb-2">{shopName}</h1>
             <p className="text-lg text-gray-800 mb-1">{ownerName}</p>
             <p className="text-base text-gray-700 mb-1">{shopPhone}</p>

@@ -15,7 +15,7 @@ interface Product {
   price: number;
   brand: string;
   stockQuantity: number;
-  image: string;
+  image?: string;
 }
 
 /**
